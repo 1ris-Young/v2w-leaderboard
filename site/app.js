@@ -477,7 +477,27 @@
     show(start);
     if(m||location.hash==='#model-update-cases')root.scrollIntoView?.();
   }
+  // Numbers inside page copy come from leaderboard.json:
+  //   data-v="model:metric"            the formatted value (with % for percentage metrics)
+  //   data-diff="modelA:modelB:metric" A − B, signed (pp for percentages)
+  //   data-ratio="modelA:modelB:metric" A ÷ B, as "2.56×"
+  //   #success-bars[data-models]       the task-success bar chart, in the listed order
+  function bindNumbers(){
+    const row=id=>state.board.models.find(m=>m.id===id);
+    const val=(id,k)=>row(id)?.metrics?.[k];
+    $$('[data-v]').forEach(el=>{const [id,k]=el.dataset.v.split(':');const v=val(id,k);if(v!=null)el.textContent=format(v,k,metric(k)?.unit==='%');});
+    $$('[data-diff]').forEach(el=>{const [a,b,k]=el.dataset.diff.split(':');const d=val(a,k)-val(b,k);if(Number.isFinite(d))el.textContent=`${d>0?'+':''}${d.toFixed(metric(k)?.unit==='%'?1:2)}${metric(k)?.unit==='%'?' pp':''}`;});
+    $$('[data-ratio]').forEach(el=>{const [a,b,k]=el.dataset.ratio.split(':');const r=val(a,k)/val(b,k);if(Number.isFinite(r))el.textContent=`${r.toFixed(2)}×`;});
+    const bars=$('#success-bars');
+    if(bars){
+      const ids=bars.dataset.models.split(':'),vals=ids.map(id=>val(id,'success')),top=Math.ceil(Math.max(...vals)/5)*5+5;
+      const lead=ids[vals.indexOf(Math.max(...vals))];
+      bars.querySelector('.result-bars').innerHTML=ids.map((id,i)=>`<div class="result-bar-row${id===lead?' result-winner':''}"><span>${esc(row(id).name.replace(/^Claude /,''))}</span><span class="result-bar-lane"><i class="result-bar" style="width:${(vals[i]/top*100).toFixed(1)}%"></i></span><b>${format(vals[i],'success',true)}</b></div>`).join('')+`<div class="result-bar-scale"><span>0%</span><span>${top}%</span></div>`;
+      bars.setAttribute('aria-label',`Task success: ${ids.map((id,i)=>`${row(id).name}, ${format(vals[i],'success',true)}`).join('; ')}.`);
+    }
+  }
   async function initUpdate(){
+    bindNumbers();
     const opus=state.board.models.find(m=>m.id==='opus-5-5');
     $('#model-results-body').innerHTML=['opus-5-5','fable-5-1','gpt-6-astra','opus-5'].map(id=>state.board.models.find(m=>m.id===id)).map(r=>`<tr class="${r.featured?'featured':''}"><td>${esc(r.name)}</td><td>${format(r.metrics.score,'score')}</td><td>${format(r.metrics.success,'success',true)}</td><td>${format(r.metrics.progress,'progress')}</td></tr>`).join('');
     $('#share-result').addEventListener('click',()=>copy(location.href.split('#')[0],'Result link copied'));
