@@ -1,0 +1,15 @@
+{
+  "model_id": "new-model-id",
+  "status": "verified",
+  "cases": [
+    {
+      "id": "REAL-INSTANCE-ID",
+      "title": "Actual task name",
+      "description": "A verified account of the task and outcome.",
+      "provenance": {"run_label": "frozen-run", "package_hash": "actual-hash", "evaluator_version": "actual-version"},
+      "source": {"video": "assets/cases/INSTANCE-source.mp4", "poster": "assets/cases/INSTANCE-source.webp"},
+      "model": {"video": "assets/cases/INSTANCE-MODEL.mp4", "poster": "assets/cases/INSTANCE-MODEL.webp", "success": false, "progress": 0.0, "description": "Fill only after verifying the actual outcome."},
+      "baseline": {"name": "Exact baseline model", "video": "assets/cases/INSTANCE-baseline.mp4", "poster": "assets/cases/INSTANCE-baseline.webp", "success": false, "progress": 0.0, "description": "Fill only after verifying the actual outcome."}
+    }
+  ]
+}

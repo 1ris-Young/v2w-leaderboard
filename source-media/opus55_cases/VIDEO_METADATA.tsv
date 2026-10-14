@@ -1,0 +1,16 @@
+case	file	codec	width	height	duration_seconds
+01_droid_orange_pick_place	fable51_failure_sim.mp4	h264,640,640,4.266667
+01_droid_orange_pick_place	human_assisted.mp4	mpeg4,640,640,6.533333
+01_droid_orange_pick_place	opus55_success_sim.mp4	h264,640,640,9.200000
+02_dexycb_bimanual_lift	fable51_failure_sim.mp4	h264,640,480,7.500000
+02_dexycb_bimanual_lift	human_assisted.mp4	h264,640,480,2.466667
+02_dexycb_bimanual_lift	opus55_success_sim.mp4	h264,640,480,3.000000
+03_hot3d_bimanual_pick_place	fable51_failure_sim.mp4	h264,640,640,3.033333
+03_hot3d_bimanual_pick_place	human_assisted.mp4	h264,640,640,2.100000
+03_hot3d_bimanual_pick_place	opus55_success_sim.mp4	h264,640,640,12.766667
+04_lamp_bulb_insert	fable51_failure_sim.mp4	h264,448,448,10.000000
+04_lamp_bulb_insert	human_assisted.mp4	h264,448,448,9.400000
+04_lamp_bulb_insert	opus55_success_sim.mp4	h264,448,448,8.200000
+05_desk_leg_insert	fable51_failure_sim.mp4	h264,448,448,8.800000
+05_desk_leg_insert	human_assisted.mp4	h264,448,448,11.000000
+05_desk_leg_insert	opus55_success_sim.mp4	h264,448,448,11.400000

@@ -1,0 +1,63 @@
+{
+  "schema": "opus55-video2world-showcase/1",
+  "created_at": "2026-10-14T08:24:00Z",
+  "source_roots": {
+    "opus55": "/mnt/agent-bench-data/yuchen/sim2real2sim_yuchen/benchmark_v2/runs/v2/opus55_v2",
+    "fable51": "/mnt/agent-bench-data/yuchen/sim2real2sim_yuchen/benchmark_v2/runs/v2/fable51_v2",
+    "row_archive_name": "row.zip",
+    "human_video_entry": "pkg/source/video.mp4",
+    "sim_video_entry": "review_media/<sample>_rollout.mp4"
+  },
+  "selection": {
+    "new_model": "claude-opus-5-5",
+    "new_agent": "claude-code 2.1.290",
+    "old_model": "claude-fable-5-1",
+    "evaluation_schema": "eval2/4",
+    "criterion": "same case and source video; opus55 task_success=true; fable51 task_success=false",
+    "common_cases": 222,
+    "matching_cases": 24,
+    "selected_cases": 5
+  },
+  "cases": [
+    {
+      "directory": "01_droid_orange_pick_place",
+      "family": "droid-pick-place",
+      "sample": "droid_guptalab_2023_05_19_11h_15m_41s_orange_hand",
+      "source_video_sha256": "8c23dfcccdbf32f7dd0935f5e175447f45ccf98887d9c08fb1fd1629e87854f0",
+      "opus55": {"task_success": true, "build": true, "phi_success": true, "terminal_success": true, "scene_chamfer_cm": 1.0831215502223375, "relative_translation_error_cm": 1.2214986869764022, "rollout_sha256": "0567ba6ae25bebdcd276fdfe7bb6af84fd1223765c24541bce899210f9ba78ba"},
+      "fable51": {"task_success": false, "build": true, "phi_success": false, "terminal_success": false, "scene_chamfer_cm": 14.171407409192069, "relative_translation_error_cm": 100.0, "rollout_sha256": "5e9767ddd99288a0ecba06847dd13ce6f6334c472da0eef9abd359d87a165442"}
+    },
+    {
+      "directory": "02_dexycb_bimanual_lift",
+      "family": "dexycb-lift-bimanual",
+      "sample": "dexycb_s01_142517",
+      "source_video_sha256": "5ff6701e5d0fb085b69b184906e15d5e0fe9782f6ddfcf4c238c1f0d832c3c87",
+      "opus55": {"task_success": true, "build": true, "hidden_replay_success": true, "phi_success": true, "terminal_success": true, "scene_chamfer_cm": 3.6205310965013315, "rollout_sha256": "6e2604005a49e17789182a33f820dede76920c6dbfbfad49fa35c2cbd7a61a7b"},
+      "fable51": {"task_success": false, "build": true, "hidden_replay_success": false, "phi_success": false, "terminal_success": false, "scene_chamfer_cm": 11.39024195510882, "rollout_sha256": "e0ee341f20ea2614abb54732eb4061ab85aecc350c0395c01cf3e5f6fcda79c9"}
+    },
+    {
+      "directory": "03_hot3d_bimanual_pick_place",
+      "family": "hot3d-pickplace-bimanual",
+      "sample": "hot3d_002498",
+      "source_video_sha256": "909634f29dbd6fcab5b4fdb26c00db53dffba61e5fe114ecc4135390ba03cac6",
+      "opus55": {"task_success": true, "build": true, "phi_success": true, "terminal_success": true, "scene_chamfer_cm": 2.1807538775038653, "relative_translation_error_cm": 5.047565460721531, "rollout_sha256": "b7a1576715a36a47daa8e068c6e655e28fa6ea18acc1ec682c8600eb8e54613c"},
+      "fable51": {"task_success": false, "build": true, "phi_success": false, "terminal_success": false, "scene_chamfer_cm": 3.159203551308527, "relative_translation_error_cm": 24.307016236318514, "rollout_sha256": "23d0fdf6aba35b9198bbc718f05b4434ec988b6528c341ce543edb9e6843f13b"}
+    },
+    {
+      "directory": "04_lamp_bulb_insert",
+      "family": "bulb-insert",
+      "sample": "fbraw_2023-01-22-22_45_54_lamp_bulb",
+      "source_video_sha256": "402ff71730b5a9443a6327e60c628ccbff20e2ff48b2a0a09009fc0d8c846d65",
+      "opus55": {"task_success": true, "build": true, "phi_success": true, "terminal_success": true, "scene_chamfer_cm": 3.0785697242999985, "relative_translation_error_cm": 1.406821049967381, "rollout_sha256": "099f95477a9f07ddb1d212b2eff51bf91f7fad38052634980614909c2fa08ba9"},
+      "fable51": {"task_success": false, "build": true, "phi_success": false, "terminal_success": false, "scene_chamfer_cm": 5.07350344768459, "relative_translation_error_cm": 100.0, "rollout_sha256": "ee025f7290bc791a8b7b48430e88c625bf628510bdf3638c78bc012f938197bf"}
+    },
+    {
+      "directory": "05_desk_leg_insert",
+      "family": "leg-insert",
+      "sample": "fbraw_2023-01-26-00_00_38_desk_leg2",
+      "source_video_sha256": "74f86c2c4f7d8fe9974f2da557906afff449bb35b44bb504c6f569e0b909826d",
+      "opus55": {"task_success": true, "build": true, "phi_success": true, "terminal_success": true, "scene_chamfer_cm": 2.86322980612236, "relative_translation_error_cm": 2.44188999038955, "rollout_sha256": "3b348ce4743ef53c29a147fac8ec8385fc8c91844e6b72697005d2c1b6c10649"},
+      "fable51": {"task_success": false, "build": true, "phi_success": false, "terminal_success": false, "scene_chamfer_cm": 2.400224107242652, "relative_translation_error_cm": 32.45536006351686, "rollout_sha256": "2b8cc6e242a7e4f81eecb1b9e669623626545c9d9087c0eefd6dd6f56f52e693"}
+    }
+  ]
+}

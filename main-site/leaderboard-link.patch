@@ -1,0 +1,88 @@
+--- a/src/data/site.json
++++ b/src/data/site.json
+@@ -140,9 +140,9 @@
+     {
+       "id": "leaderboard",
+       "label": "Leaderboard",
+-      "url": null,
++      "url": "leaderboard/",
+       "featured": true,
+-      "note": "Public leaderboard and submissions, coming soon"
++      "note": "Live leaderboard (separate source: Video2World leaderboard repository)"
+     },
+     {
+       "id": "eval",
+--- a/src/components/Navbar.astro
++++ b/src/components/Navbar.astro
+@@ -5,6 +5,18 @@
+ const sections = ['Abstract', 'Tasks', 'Evaluation', 'Results', 'Experiments'];
+ // The public leaderboard gets its own pill after Paper and Code (coming soon until it has a URL).
+ const board = site.resources.find((r) => r.label === 'Leaderboard');
++// "NEW" pill: the latest published entry of the leaderboard's own News feed
++// (public/leaderboard/data/news.json, copied in from the leaderboard repository). No feed, no pill.
++import { readFileSync } from 'node:fs';
++type NewsEntry = { title: string; href: string; status: string; date: string; nav_label?: string };
++let latestNews: NewsEntry | undefined;
++try {
++  const feed = JSON.parse(readFileSync('public/leaderboard/data/news.json', 'utf8')) as { entries: NewsEntry[] };
++  latestNews = feed.entries.filter((e) => e.status === 'published').sort((a, b) => b.date.localeCompare(a.date))[0];
++} catch {
++  latestNews = undefined;
++}
++const newsLabel = latestNews ? (latestNews.nav_label ?? latestNews.title.split(':')[0]) : '';
+ ---
+ 
+ <a class="skip-link" href="#main">
+@@ -40,7 +52,7 @@
+           ),
+         )}
+         {board && (board.url ? (
+-          <a class="nav-board" href={board.url}><svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS[resourceIcon(board)]} /></svg>{board.label}</a>
++          <a class="nav-board" href={asset(board.url)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS[resourceIcon(board)]} /></svg>{board.label}</a>
+         ) : (
+           <span class="nav-board is-soon" aria-label={`${board.label}: coming soon`}>
+             <svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS[resourceIcon(board)]} /></svg>
+@@ -48,6 +60,11 @@
+             <small>coming soon</small>
+           </span>
+         ))}
++        {latestNews && board?.url && (
++          <a class="nav-new" href={asset(`${board.url.replace(/\/$/, '')}/${latestNews.href}`)} aria-label={`New: ${newsLabel}`}>
++            <span class="nav-new-tag">New</span>{newsLabel}
++          </a>
++        )}
+       </div>
+     </nav>
+   </div>
+--- a/src/styles/global.css
++++ b/src/styles/global.css
+@@ -1207,3 +1207,29 @@
+     text-transform: uppercase;
+   }
+ }
++
++/* "NEW" pill after the Leaderboard pill: latest leaderboard news (Navbar.astro). */
++.nav-new {
++  display: inline-flex;
++  align-items: center;
++  gap: 8px;
++  align-self: center;
++  padding: 6px 14px 6px 6px;
++  border-radius: 999px;
++  background: var(--warm-solid);
++  color: var(--bg);
++  white-space: nowrap;
++}
++nav a.nav-new:hover {
++  background: var(--warm-solid-hover);
++  color: var(--bg);
++}
++.nav-new-tag {
++  padding: 2px 8px;
++  border-radius: 999px;
++  background: var(--warm-tint);
++  color: var(--warm-ink);
++  font: var(--fw-label) var(--fs-label) / var(--lh-label) var(--font-mono);
++  letter-spacing: var(--ls-label);
++  text-transform: uppercase;
++}
