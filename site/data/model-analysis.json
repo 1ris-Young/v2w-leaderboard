@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "models": {
+    "opus-5-5": {
+      "intro": "The snapshot shows stronger task outcomes and more executable builds. The diagnostic profile is mixed, so the overall lead should be read alongside the component metrics and selected case evidence.",
+      "findings": [
+        {
+          "title": "More tasks completed, more stages reached",
+          "body": "Opus 5.5 has the highest task success and stage progress among the models in this supplied snapshot. Both improve over Opus 5 and Fable 5.1. The five verified clips show concrete successful outcomes across several task families, while their selection deliberately favors this contrast.",
+          "metric_keys": [
+            "success",
+            "progress"
+          ],
+          "case_ids": [
+            "droid_guptalab_2023_05_19_11h_15m_41s_orange_hand",
+            "dexycb_s01_142517"
+          ]
+        },
+        {
+          "title": "Executability is a relative strength",
+          "body": "Build rate is the highest in the current snapshot. This measures how often the generated world executes; task success separately measures whether execution completes the intended interaction. A successful build does not guarantee a successful task.",
+          "metric_keys": [
+            "build",
+            "success"
+          ]
+        },
+        {
+          "title": "Similar geometry can accompany different outcomes",
+          "body": "Scene, object-shape and object-size errors are close to Fable 5.1 in aggregate. In the desk-leg case, Fable 5.1 has a slightly lower scene error but fails the task, while Opus 5.5 passes. This demonstrates why geometry and task outcome are reported separately; it does not isolate a cause.",
+          "metric_keys": [
+            "scene_cd",
+            "shape_cd",
+            "size_err"
+          ],
+          "case_ids": [
+            "fbraw_2023-01-26-00_00_38_desk_leg2"
+          ]
+        },
+        {
+          "title": "The lead does not cover every diagnostic",
+          "body": "Fixed-ref Task is lower than Fable 5.1, while Fixed-ref Progress is equal. Terminal relative translation error is close between the two. These diagnostics identify limits to the overall gain, subject to the supplied coverage and missing full run configuration.",
+          "metric_keys": [
+            "fixed_success",
+            "fixed_progress",
+            "terminal_trans"
+          ]
+        }
+      ],
+      "limitations": [
+        "The displayed cases are five selected Opus-success / Fable-failure pairs from 24 matching pairs across 222 common cases. They are illustrative rather than a representative sample.",
+        "No verified Opus 5.5 failure clips are supplied in this collection. Do not infer a complete failure taxonomy from selected successes.",
+        "Feedback use and recovery through revision are not assessed by these final metrics or rollouts. Agent iteration logs and revision trajectories are needed.",
+        "The supplied snapshot omits complete run settings and aggregate-score coverage; per-metric coverage differs. Paper results must remain separate."
+      ],
+      "evidence_priorities": []
+    },
+    "gemini-4-argon": {
+      "intro": "Gemini 4 Argon is being tested. Its report will connect the verified metric profile to actual case outputs after the evaluation is complete.",
+      "findings": [],
+      "limitations": [
+        "No verified result is available yet. Ranking, strengths and weaknesses remain unreported."
+      ],
+      "evidence_priorities": [
+        "Executable builds: build rate, coverage and examples of both runnable worlds and build failures.",
+        "Task completion: success and stage progress, supported by verified successful and failed rollouts.",
+        "Physical fidelity: geometry and dynamics metrics linked to the same source videos and model outputs.",
+        "Feedback and recovery: iteration logs showing what the agent changed after feedback; this claim requires evidence beyond final scores.",
+        "Comparable setup: exact model and agent settings, evaluation version, instance manifest and per-metric coverage."
+      ]
+    },
+    "meta-muse": {
+      "intro": "Meta Muse is being tested. Its report will connect the verified metric profile to actual case outputs after the evaluation is complete.",
+      "findings": [],
+      "limitations": [
+        "No verified result is available yet. Ranking, strengths and weaknesses remain unreported."
+      ],
+      "evidence_priorities": [
+        "Executable builds: build rate, coverage and examples of both runnable worlds and build failures.",
+        "Task completion: success and stage progress, supported by verified successful and failed rollouts.",
+        "Physical fidelity: geometry and dynamics metrics linked to the same source videos and model outputs.",
+        "Feedback and recovery: iteration logs showing what the agent changed after feedback; this claim requires evidence beyond final scores.",
+        "Comparable setup: exact model and agent settings, evaluation version, instance manifest and per-metric coverage."
+      ]
+    },
+    "gpt-6-1-sol": {
+      "intro": "GPT-6.1 Sol is being tested. Its report will connect the verified metric profile to actual case outputs after the evaluation is complete.",
+      "findings": [],
+      "limitations": [
+        "No verified result is available yet. Ranking, strengths and weaknesses remain unreported."
+      ],
+      "evidence_priorities": [
+        "Executable builds: build rate, coverage and examples of both runnable worlds and build failures.",
+        "Task completion: success and stage progress, supported by verified successful and failed rollouts.",
+        "Physical fidelity: geometry and dynamics metrics linked to the same source videos and model outputs.",
+        "Feedback and recovery: iteration logs showing what the agent changed after feedback; this claim requires evidence beyond final scores.",
+        "Comparable setup: exact model and agent settings, evaluation version, instance manifest and per-metric coverage."
+      ]
+    }
+  }
+}

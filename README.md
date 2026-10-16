@@ -27,3 +27,10 @@ node scripts/check-interactions.mjs                    # page behaviour
 ```
 
 How we work together: see `CONTRIBUTING.md`.
+
+
+## Ranking and model reports
+
+The homepage leads with the overall ranking. Select a model to inspect its full metric profile and coverage. News links to four flagship model reports; pending reports show Testing until verified results are imported.
+
+Edit report findings and evidence priorities in `site/data/model-analysis.json`, and keep the related metrics and case IDs traceable. Feedback and recovery claims need iteration logs. The joint blog remains in preparation until the four-model protocol and evidence review is complete; adding four score rows does not publish it automatically.
