@@ -106,23 +106,42 @@
     const isFiltered = state.provider!=='All' || state.search!=='';
     const colors = {Anthropic:'#dfb899',OpenAI:'#8acbb3',Google:'#95b8f5',Moonshot:'#c1a7ec',DeepSeek:'#93b6ec',Alibaba:'#edb478',Zhipu:'#b5abea'};
     $('#chart-title').textContent = labels[state.chart];
-    $('#ranking-context').textContent = `${isFiltered?'Filtered models':'All models'} · higher is better`;
-    $('#rank-chart').setAttribute('aria-label',`${labels[state.chart]} by model on a zero to one hundred scale. ${state.snapshot==='current'?'Supplied snapshot.':'Published paper results.'}`);
-    // Podium in the classic order (#2 · #1 · #3): the leader stands raised in the middle on a
-    // plinth. The full ranking with score bars follows below, as before.
+    if($('#ranking-context'))$('#ranking-context').textContent = `${isFiltered?'Filtered models':'All models'} · higher is better`;
+    if($('#rank-chart'))$('#rank-chart').setAttribute('aria-label',`${labels[state.chart]} by model on a zero to one hundred scale. ${state.snapshot==='current'?'Supplied snapshot.':'Published paper results.'}`);
+    // Ranking board in the manner of 2048: every model is a tile on a four-column board; the
+    // higher the value, the deeper the tile. #1 takes a 2x2 tile, #2 and #3 a 2x1 tile, the rest
+    // one cell each; empty cells show as wells. Switching "Rank by" slides tiles to their new
+    // places (FLIP), and a tile that changes rank pops briefly.
     const unit=state.chart==='score'?'points':'pp';
-    const podiumCard=(r,i)=>{
-      const gap=leader.metrics[state.chart]-r.metrics[state.chart];
-      return `<button type="button" class="podium-card podium-${i+1} ${i===0?'podium-leader':''}" data-rank-model="${esc(r.id)}" aria-label="Rank ${globalRanks.get(r.id)}, ${esc(r.name)}, ${format(r.metrics[state.chart],state.chart,true)}. Open details.">
-        <span class="podium-avatar"><span class="provider-mark">${modelLogo(r)}</span>${(()=>{const rank=globalRanks.get(r.id),medal={1:'🥇',2:'🥈',3:'🥉'}[rank];return medal?`<span class="podium-badge is-medal" aria-hidden="true">${medal}</span>`:`<span class="podium-badge">${rank}</span>`;})()}</span>
-        <span class="podium-provider">${esc(r.provider)}</span><strong class="podium-name">${esc(r.name)}</strong>
-        <span class="podium-score">${format(r.metrics[state.chart],state.chart)}<small>${state.chart==='score'?'/ 100':'%'}</small></span>
-        <span class="podium-note">${i===0?(contenders[1]?`+${format(r.metrics[state.chart]-contenders[1].metrics[state.chart],state.chart)} ${unit} ahead`:'Highest in view'):`−${format(gap,state.chart)} ${unit} from lead`}</span>
+    const board=$('#rank-podium');
+    const before=new Map(),prevRank=new Map();
+    (board.querySelectorAll?board.querySelectorAll('[data-rank-model]'):[]).forEach(t=>{if(t.getBoundingClientRect){before.set(t.dataset.rankModel,t.getBoundingClientRect());prevRank.set(t.dataset.rankModel,t.dataset.rank);}});
+    const vals=contenders.map(r=>r.metrics[state.chart]),hi=Math.max(...vals),lo=Math.min(...vals);
+    const slot=i=>i===0?[1,1,2,2]:i===1?[3,1,2,1]:i===2?[3,2,2,1]:[1+(i-3)%4,3+Math.floor((i-3)/4),1,1];
+    const rowsUsed=contenders.length?Math.max(...contenders.map((_,i)=>{const q=slot(i);return q[1]+q[3]-1;})):0;
+    const tile=(r,i)=>{
+      const v=r.metrics[state.chart],t=hi>lo?(v-lo)/(hi-lo):1,[c,ro,w,h]=slot(i),rank=globalRanks.get(r.id);
+      const note=i===0?(contenders[1]?`${format(v-contenders[1].metrics[state.chart],state.chart)} ${unit} ahead`:'Highest in view'):`${format(leader.metrics[state.chart]-v,state.chart)} ${unit} behind`;
+      return `<button type="button" class="podium-card rank-tile ${i===0?'podium-leader tile-lead':i<3?'tile-wide':'tile-small'} ${t>0.62?'is-deep':''}" data-rank-model="${esc(r.id)}" data-rank="${rank}" style="--c:${c};--r:${ro};--w:${w};--h:${h};--t:${t.toFixed(3)}" aria-label="Rank ${rank}, ${esc(r.name)}, ${format(v,state.chart,true)}. Open details.">
+        <span class="tile-top"><span class="tile-rank">${String(rank).padStart(2,'0')}</span>${r.featured?'<span class="podium-new">New</span>':''}</span>
+        <span class="tile-id"><span class="provider-mark">${modelLogo(r)}</span><span><span class="podium-provider">${esc(r.provider)}</span><strong class="podium-name">${esc(r.name)}</strong></span></span>
+        <span class="podium-score">${format(v,state.chart)}<small>${state.chart==='score'?'/ 100':'%'}</small></span>
+        ${i<3?`<span class="podium-note">${note}</span>`:''}
       </button>`;
     };
-    const top3=contenders.slice(0,3), order=[1,0,2].filter(i=>top3[i]);
-    $('#rank-podium').innerHTML = order.map(i=>podiumCard(top3[i],i)).join('');
-    $('#rank-chart').innerHTML = rows.length ? rows.map((r,i)=>`<button type="button" class="chart-row ${r.id===leader?.id?'ladder-leader':''} ${r.reference?'reference':''}" data-rank-model="${esc(r.id)}" style="--row-color:${colors[r.provider]||'#b9acd6'};--row-order:${i}"><span class="chart-rank">${r.reference?'REF':String(globalRanks.get(r.id)).padStart(2,'0')}</span><span class="chart-name">${esc(r.name)}${r.featured?'<span class="ladder-new">NEW</span>':''}</span><span class="chart-lane"><span class="chart-bar" style="width:${Math.max(0,Math.min(100,r.metrics[state.chart]))}%" aria-hidden="true"><i></i></span></span><span class="chart-value">${format(r.metrics[state.chart],state.chart,state.chart!=='score')}</span><span class="chart-open" aria-hidden="true">↗</span></button>`).join('') : '<p class="ranking-empty">No models match this filter. Try another search or provider.</p>';
+    const wells=Array.from({length:rowsUsed*4},(_,k)=>`<span class="tile-well" aria-hidden="true" style="--c:${1+k%4};--r:${1+Math.floor(k/4)}"></span>`).join('');
+    board.innerHTML = contenders.length?wells+contenders.map(tile).join(''):'<p class="rank-empty">No models match the current filters.</p>';
+    board.style&&board.style.setProperty&&board.style.setProperty('--rows',rowsUsed);
+    const reduce=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if(!reduce&&board.querySelectorAll)board.querySelectorAll('[data-rank-model]').forEach(el=>{
+      if(!el.animate||!el.getBoundingClientRect)return;
+      const id=el.dataset.rankModel,old=before.get(id),now=el.getBoundingClientRect();
+      if(!old){el.animate([{transform:'scale(.6)',opacity:0},{transform:'scale(1)',opacity:1}],{duration:260,easing:'cubic-bezier(.2,.8,.2,1)'});return;}
+      const dx=old.left-now.left,dy=old.top-now.top;  // slide only; size changes settle with the pop, so text never stretches
+      if(dx||dy)el.animate([{transform:`translate(${dx}px,${dy}px)`},{transform:'none'}],{duration:420,easing:'cubic-bezier(.3,.7,.2,1)'});
+      if(prevRank.get(id)&&prevRank.get(id)!==el.dataset.rank)el.animate([{scale:1},{scale:1.06},{scale:1}],{duration:220,delay:400,easing:'ease-out'});
+    });
+    if($('#rank-chart'))$('#rank-chart').innerHTML = rows.length ? rows.map((r,i)=>`<button type="button" class="chart-row ${r.id===leader?.id?'ladder-leader':''} ${r.reference?'reference':''}" data-rank-model="${esc(r.id)}" style="--row-color:${colors[r.provider]||'#b9acd6'};--row-order:${i}"><span class="chart-rank">${r.reference?'REF':String(globalRanks.get(r.id)).padStart(2,'0')}</span><span class="chart-name">${esc(r.name)}${r.featured?'<span class="ladder-new">NEW</span>':''}</span><span class="chart-lane"><span class="chart-bar" style="width:${Math.max(0,Math.min(100,r.metrics[state.chart]))}%" aria-hidden="true"><i></i></span></span><span class="chart-value">${format(r.metrics[state.chart],state.chart,state.chart!=='score')}</span><span class="chart-open" aria-hidden="true">↗</span></button>`).join('') : '<p class="ranking-empty">No models match this filter. Try another search or provider.</p>';
     $$('[data-rank-model]').forEach(b=>b.addEventListener('click',()=>openModel(b.dataset.rankModel)));
   }
   function openModel(id) {
@@ -136,7 +155,7 @@
   function setSnapshot(snapshot) {
     state.snapshot=snapshot;state.sort='score';state.sortDir='desc';
     ['current','paper'].forEach(s=>{const b=$(`#snapshot-${s}`);b.classList.toggle('active',s===snapshot);b.setAttribute('aria-pressed',String(s===snapshot));});
-    $('#snapshot-date').textContent=snapshot==='current'?`Snapshot · ${state.board.snapshot_date}`:'Archive · published project page';
+    $('#snapshot-date').textContent=snapshot==='current'?lastUpdated():'Archive · published project page';
     if($('#snapshot-note'))$('#snapshot-note').textContent=snapshot==='current'?'Recorded results and per-metric coverage. Select a model for counts and source details.':'Published-paper values are shown separately. The newer snapshot uses different reported values and diagnostic labels.';
     renderTable();
   }
@@ -182,20 +201,41 @@
     document.addEventListener('visibilitychange',()=>{if(document.hidden)$$('video').forEach(v=>v.pause());});
     bindVideoFallbacks();
   }
-  // Homepage case explorer: verified Opus 5.5 cases with the baseline on the same source video.
-  // Homepage teaser: one featured verified case (source / Opus 5.5 / baseline); the full set and
-  // the per-case reading live on the Opus 5.5 page.
+  // Homepage case studies: a library of the verified Opus 5.5 cases (source-video thumbnails) and,
+  // for the selected one, Opus 5.5 next to the baseline on the same source video with scene CD.
   async function initVerifiedCases(){
-    if(!$('#opus-case-explorer'))return;
-    const collection=await fetchJSON('data/opus-5-5-cases.json');const list=collection.cases||[];
+    const root=$('#opus-case-explorer');if(!root)return;
+    const collection=await fetchJSON('data/opus-5-5-cases.json');
+    const order=c=>Number((c.source?.video||'').match(/\/(\d+)_[^/]*\/[^/]*$/)?.[1]||99);
+    const list=[...(collection.cases||[])].sort((a,b)=>order(a)-order(b));
     if(!list.length){const sec=$('#cases');if(sec)sec.hidden=true;return;}
     const opus=state.board.models.find(m=>m.id==='opus-5-5');
-    const c=list.find(x=>x.id===collection.featured_case)||list[0];
-    if($('#opus-case-tabs'))$('#opus-case-tabs').hidden=true;
-    $('#opus-case-explorer').innerHTML=`<div class="case-summary"><div><h3>${esc(c.title)}</h3><p>${esc(c.analysis||c.description)}</p></div><span class="outline-tag">${esc(c.dataset||c.family)}</span></div><div class="case-videos">${renderCaseColumn({...c.source,name:'Source video'},true)}${renderCaseColumn({...c.model,name:opus?.name||'Claude Opus 5.5'})}${c.baseline?renderCaseColumn(c.baseline):''}</div><div class="case-controls"><div><button type="button" data-opus-play>Play together ▷</button><button type="button" data-opus-reset>Restart ↺</button></div><a class="button secondary" href="${path('updates/opus-5-5.html')}#model-update-cases">See all ${list.length} cases on the Opus 5.5 page <span>→</span></a></div>`;
-    $('[data-opus-play]').addEventListener('click',()=>$$('#opus-case-explorer video').forEach(v=>v.play().catch(()=>{})));
-    $('[data-opus-reset]').addEventListener('click',()=>$$('#opus-case-explorer video').forEach(v=>{v.pause();v.currentTime=0;}));
-    bindVideoFallbacks();
+    const num=i=>String(i+1).padStart(2,'0');
+    // Metrics under each clip: only those listed in the case's `highlights` (clear improvements),
+    // with the Opus side carrying how much better it is (not against a capped failure value).
+    const fmt=(h,v)=>typeof v==='number'?`${v.toFixed(2)} ${h.unit||''}`.trim():String(v);
+    const gain=h=>{if(typeof h.model!=='number'||!h.model||h.better!=='lower'||h.baseline_capped)return '';const r=h.baseline/h.model;return `${r>=10?Math.round(r):r.toFixed(1)}× lower`;};
+    const metrics=(c,side)=>(c.highlights||[]).map(h=>`<div class="cs-metric"><span>${esc(h.label)}</span><strong>${esc(fmt(h,h[side]))}${side==='model'&&gain(h)?`<em>${esc(gain(h))}</em>`:''}</strong></div>`).join('');
+    const column=(c,side,name)=>{const m=c[side];return `<div class="cs-run ${m.success?'is-win':'is-loss'}"><div class="cs-run-top"><span class="cs-run-name">${esc(name)}</span><span class="cs-outcome"><span aria-hidden="true">${m.success?'✓':'✕'}</span> Task ${m.success?'success':'failed'}</span></div><div class="cs-frame"><video src="${esc(path(m.video))}" poster="${esc(path(m.poster))}" muted playsinline loop preload="metadata" aria-label="${esc(name)} simulation video"></video><button class="cs-play" type="button" aria-label="Play both simulations"></button></div>${(c.highlights||[]).length?`<div class="cs-metrics">${metrics(c,side)}</div>`:''}</div>`;};
+    const base=state.board.models.find(m=>m.id==='fable-5-1');const sel=collection.selection||{};
+    const lede=opus&&base?`${opus.name} lifts task success from ${base.metrics.success}% to ${opus.metrics.success}% over ${base.name} (V2WScore ${base.metrics.score} → ${opus.metrics.score})${sel.matching_cases&&sel.common_cases?`, and succeeds on ${sel.matching_cases} of ${sel.common_cases} shared videos where ${base.name} fails`:''}.`:'';
+    const head=`<div class="cs-head"><span class="eyebrow section-index">${esc($('#opus-case-explorer .section-index')?.textContent||'Case studies')}</span><h2 id="cases-title">${esc($('#cases-title')?.textContent||'Same video. Different worlds.')}</h2>${lede?`<p class="cs-lede">${esc(lede)}</p>`:''}</div>`;
+    const select=i=>{
+      const c=list[i];
+      $$('#opus-case-explorer video').forEach(v=>v.pause());
+      $$('#opus-case-explorer .cs-thumb').forEach((t,j)=>{t.classList.toggle('active',j===i);t.setAttribute('aria-selected',String(j===i));});
+      $('#opus-case-explorer .cs-detail').innerHTML=`<div class="cs-detail-head"><div><span class="eyebrow">Case ${num(i)} / ${esc(c.dataset||c.family)}</span><h3>${esc(c.title)}</h3></div><a class="cs-source" href="${esc(path(c.source.video))}" target="_blank" rel="noopener">View source <span aria-hidden="true">↗</span></a></div><div class="cs-runs">${column(c,'model',opus?.name||'Claude Opus 5.5')}${c.baseline?column(c,'baseline',c.baseline.name):''}</div>`;
+      const vids=$$('#opus-case-explorer .cs-detail video');
+      const playing=()=>vids.some(v=>!v.paused);
+      const sync=()=>root.classList.toggle('is-playing',playing());
+      vids.forEach(v=>{v.addEventListener('play',sync);v.addEventListener('pause',sync);v.addEventListener('click',()=>{vids.forEach(x=>x.pause());});});
+      $$('#opus-case-explorer .cs-play').forEach(btn=>btn.addEventListener('click',()=>vids.forEach(v=>{v.currentTime=0;v.play().catch(()=>{});})));
+      root.classList.remove('is-playing');
+      bindVideoFallbacks();
+    };
+    root.innerHTML=`${head}<div class="cs-gallery"><div class="cs-library-head"><span class="eyebrow">Source video library</span><a class="cs-all" href="${path('updates/opus-5-5.html')}#model-update-cases">View all cases <span aria-hidden="true">↗</span></a></div><div class="cs-library" role="tablist" aria-label="Choose a case">${list.map((c,i)=>`<button class="cs-thumb" type="button" role="tab" aria-selected="false" data-case-thumb="${i}" aria-label="Case ${num(i)}: ${esc(c.title)}"><span class="cs-thumb-media"><img src="${esc(path(c.source.poster))}" alt="" loading="lazy"><span class="cs-thumb-play" aria-hidden="true"></span></span><span class="cs-thumb-label"><span>${esc(c.dataset||c.family)}</span>${esc(c.title)}</span></button>`).join('')}</div></div><div class="cs-detail" role="tabpanel"></div>`;
+    $$('#opus-case-explorer .cs-thumb').forEach((t,i)=>t.addEventListener('click',()=>select(i)));
+    select(0);
   }
   async function initHome(){
     renderProviders();renderTable();if($('#case-tabs'))renderCase();renderLatest();await initVerifiedCases();
@@ -218,6 +258,8 @@
     if($('#case-tabs')&&location.hash.startsWith('#case=')){const params=new URLSearchParams(location.hash.slice(1));state.caseId=params.get('case')||state.caseId;state.caseA=params.get('a')||state.caseA;state.caseB=params.get('b')||state.caseB;renderCase();$('#cases').scrollIntoView();}
     if(location.hash.startsWith('#model='))openModel(decodeURIComponent(location.hash.slice(7)));
   }
+  // Date the results data was last updated (leaderboard.json snapshot_date), e.g. "Last updated · 09 Oct 2026".
+  function lastUpdated(){return `Last updated · ${new Date(`${state.board.snapshot_date}T00:00:00Z`).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'})}`;}
   function renderLatest(){
     const best=[...state.board.models].sort((a,b)=>b.metrics.score-a.metrics.score)[0];
     $('#release-title').textContent=best.name;
@@ -228,14 +270,29 @@
     values[2].innerHTML=`${format(best.metrics.build,'build')}<span>%</span>`;
     highlight.querySelectorAll('.metric-name')[2].textContent='Build rate';
     const count=$$('.benchmark-stats dt')[2];if(count)count.textContent=state.board.models.length;
-    $('#snapshot-date').textContent=`Snapshot · ${new Date(`${state.board.snapshot_date}T00:00:00Z`).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'})}`;
+    $('#snapshot-date').textContent=lastUpdated();
     renderNews();renderCampaign();
   }
   function renderNews(){
     const published=state.news.entries.filter(n=>n.status==='published').sort((a,b)=>b.date.localeCompare(a.date));
     const grid=$('.updates-grid');
-    if(grid)grid.innerHTML=published.map(n=>`<a href="${path(n.href)}" class="update-card featured-update"><div class="update-top"><span class="release-tag">${n.kind==='roundup'?'JOINT ANALYSIS':'MODEL REPORT'}</span><span>${esc(n.date_label||'Published')} · ${esc(n.date)}</span></div><h3>${esc(n.title)}</h3><p>${esc(n.summary)}</p><div class="update-bottom"><span>Read the report</span><span>↗</span></div></a>`).join('')+state.board.pending_models.map(m=>`<a href="${path(`updates/${m.id}.html`)}" class="update-card upcoming-update"><div class="update-top"><span class="testing-tag"><span class="status-dot"></span>TESTING</span><span>${esc(m.provider)}</span></div><h3>${esc(m.name)}</h3><p>Results pending. The report will examine task completion, build reliability, physical fidelity and verified case evidence.</p><div class="update-bottom"><span>View testing status</span><span>↗</span></div></a>`).join('');
+    if(grid&&grid.dataset.layout==='bento'){renderReportsBento(grid,published);}
+    else if(grid)grid.innerHTML=published.map(n=>`<a href="${path(n.href)}" class="update-card featured-update"><div class="update-top"><span class="release-tag">${n.kind==='roundup'?'JOINT ANALYSIS':'MODEL REPORT'}</span><span>${esc(n.date_label||'Published')} · ${esc(n.date)}</span></div><h3>${esc(n.title)}</h3><p>${esc(n.summary)}</p><div class="update-bottom"><span>Read the report</span><span>↗</span></div></a>`).join('')+state.board.pending_models.map(m=>`<a href="${path(`updates/${m.id}.html`)}" class="update-card upcoming-update"><div class="update-top"><span class="testing-tag"><span class="status-dot"></span>TESTING</span><span>${esc(m.provider)}</span></div><h3>${esc(m.name)}</h3><p>Results pending. The report will examine task completion, build reliability, physical fidelity and verified case evidence.</p><div class="update-bottom"><span>View testing status</span><span>↗</span></div></a>`).join('');
     const summary=$('#nav-news-summary');if(summary&&published[0])summary.innerHTML=`<span class="news-nav-kicker">LATEST REPORT</span><a href="${path(published[0].href)}">${esc(published[0].title)} <span>↗</span></a><a class="news-nav-all" href="${path('news/index.html')}">All four model reports & testing progress →</a>`;
+  }
+  // Home "News & model reports": the latest published report as a featured card with a still
+  // from a verified case (news.json cover), and the reports still in testing as a list.
+  function renderReportsBento(grid,published){
+    const fmtDate=d=>new Date(`${d}T00:00:00Z`).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'});
+    const featured=published[0];
+    const card=featured?(()=>{
+      const id=(featured.href.match(/updates\/([^/]+)\.html$/)||[])[1],row=state.board.models.find(m=>m.id===id);
+      const line=featured.title.includes(':')?featured.title.split(':').slice(1).join(':').trim():featured.summary;
+      return `<a class="update-card featured-update bento-featured" href="${path(featured.href)}">${featured.cover?`<span class="bento-cover"><img src="${esc(path(featured.cover))}" alt="${esc(featured.cover_alt||'')}" loading="lazy" decoding="async"></span>`:''}<span class="bento-featured-body"><span class="bento-row"><span class="tiny-label">${featured.kind==='roundup'?'Joint analysis':'Featured report'} / ${esc(fmtDate(featured.date))}</span><span class="bento-state is-published"><i></i>Published</span></span><span class="bento-split"><span class="bento-id"><strong class="bento-name">${esc(row?.name||featured.title)}</strong><span class="bento-line">${esc(line)}.</span></span>${row?`<span class="bento-metrics"><span><b>${format(row.metrics.score,'score')}</b><small>V2WScore</small></span><span><b>${format(row.metrics.success,'success',true)}</b><small>Success</small></span><span class="bento-read">Read report ↗</span></span>`:'<span class="bento-metrics"><span class="bento-read">Read ↗</span></span>'}</span></span></a>`;
+    })():'';
+    const monoLogo={Google:'gemini-mono',Meta:'meta-mono',OpenAI:'openai-mono',Anthropic:'claude-color'};
+    const pending=state.board.pending_models.map(m=>`<div class="update-card upcoming-update bento-upcoming" data-report="${path(`updates/${m.id}.html`)}"><span class="bento-up-main"><span class="bento-logo" aria-hidden="true">${monoLogo[m.provider]?`<i style="--logo:url('${esc(path(`assets/logos/${monoLogo[m.provider]}.svg`))}')"></i>`:esc(m.provider.slice(0,1))}</span><strong>${esc(m.name)}</strong><span class="tiny-label">${esc(m.provider)}</span></span><span class="bento-soon" role="link" aria-disabled="true" title="Results are still being verified">Test results <em>Coming soon</em></span><span class="sr-only">Testing · results pending verification</span></div>`).join('');
+    grid.innerHTML=`${card}<div class="bento-upcoming-list"><div class="bento-row"><span class="tiny-label">Upcoming reports</span><span class="bento-state"><i></i>Testing</span></div>${pending||'<p class="bento-empty">All four reports are published.</p>'}</div>`;
   }
   function renderCampaign(){
     const campaign=state.news.campaign;
@@ -255,7 +312,7 @@
     const list=collection.cases||[];if(!root||!list.length)return;
     const sel=collection.selection;
     const intro=sel?`<p class="case-selection">${esc(`Of the ${sel.common_cases} cases evaluated for both models, ${sel.matching_cases} are completed by ${modelName} and failed by ${sel.baseline_model} on the same source video. These ${sel.selected_cases} cover different task families. Outcomes are the formal task-success judgments.`)}</p>`:'';
-    root.innerHTML=`<span class="eyebrow section-index">${esc(kicker)}</span><h2>Inspect the new model's execution.</h2>${collection.intro?`<p class="case-lead">${esc(collection.intro)}</p>`:''}${intro}<div class="case-tabs" role="tablist" aria-label="Choose a case">${list.map((c,i)=>`<button type="button" role="tab" data-case-index="${i}" aria-selected="false">${esc(c.title)}</button>`).join('')}</div><div class="case-explorer" id="model-case-view" role="tabpanel"></div>`;
+    root.innerHTML=`<div class="section-heading"><div><span class="eyebrow section-index">${esc(kicker)}</span><h2>Inspect the new model's execution.</h2></div></div>${collection.intro?`<p class="case-lead">${esc(collection.intro)}</p>`:''}${intro}<div class="case-tabs" role="tablist" aria-label="Choose a case">${list.map((c,i)=>`<button type="button" role="tab" data-case-index="${i}" aria-selected="false">${esc(c.title)}</button>`).join('')}</div><div class="case-explorer" id="model-case-view" role="tabpanel"></div>`;
     const show=i=>{
       const c=list[i];
       root.querySelectorAll('[data-case-index]').forEach(b=>{const on=+b.dataset.caseIndex===i;b.classList.toggle('active',on);b.setAttribute('aria-selected',String(on));});
@@ -289,6 +346,16 @@
       bars.setAttribute('aria-label',`Task success: ${ids.map((id,i)=>`${row(id).name}, ${format(vals[i],'success',true)}`).join('; ')}.`);
     }
   }
+  // Model pages: number the visible top-level sections in order ("01 / …"), as on the main site.
+  function numberSections(){
+    let n=0;
+    $$('.update-page > section[data-rail]').forEach(sec=>{
+      if(sec.hidden)return;
+      const eb=sec.querySelector('.section-index');if(!eb)return;
+      const base=eb.dataset.label||eb.textContent.replace(/^\d+\s*\/\s*/,'').trim();
+      eb.dataset.label=base;eb.textContent=`${String(++n).padStart(2,'0')} / ${base}`;
+    });
+  }
   async function initUpdate(){
     bindNumbers();
     const opus=state.board.models.find(m=>m.id==='opus-5-5');
@@ -302,7 +369,8 @@
     if($('#model-cases-status'))$('#model-cases-status').hidden=collection.cases?.length>0;
     if(collection.cases?.length){
       $('#model-update-cases').hidden=false;
-      renderCaseSwitcher($('#model-update-cases'),collection,opus.name,'VERIFIED CASE EVIDENCE');
+      renderCaseSwitcher($('#model-update-cases'),collection,opus.name,'EXECUTION CASES');
+      const ch=$('#model-update-cases h2');if(ch)ch.textContent='Execution, side by side.';
       bindVideoFallbacks();
     }
     // Remaining failures (both models fail on the same video): shown once verified clips are supplied.
@@ -314,13 +382,61 @@
   }
   function renderMetricCoverage(row){
     const target=$('#generic-metric-coverage');if(!target)return;
-    target.innerHTML=state.board.metrics.map(m=>`<tr><td>${esc(m.label)}</td><td>${format(row.metrics[m.key],m.key,m.unit==='%')} ${!['%','0–1','0–100'].includes(m.unit)?esc(m.unit):''}</td><td>${row.coverage?.[m.key]!=null?`n=${row.coverage[m.key]} / ${state.board.instances}`:'Not supplied'}</td></tr>`).join('');
+    // Breakdown variant (Opus page): metrics already shown in the comparison table are left out,
+    // coverage reads "199 / 222", and a note summarises coverage of the headline metrics.
+    const skip=(target.dataset.exclude||'').split(',').filter(Boolean),breakdown=target.dataset.style==='breakdown',N=state.board.instances;
+    const cov=k=>row.coverage?.[k]!=null?`${breakdown?'':'n='}${row.coverage[k]} / ${N}`:'Not supplied';
+    const list=state.board.metrics.filter(m=>!skip.includes(m.key));
+    if(breakdown)list.sort((a,b)=>(b.key==='build')-(a.key==='build'));  // build rate leads the breakdown
+    const unitOf=m=>['%','0–1','0–100'].includes(m.unit)?'':breakdown&&m.unit==='deg'?'°':` ${esc(m.unit)}`;
+    target.innerHTML=list.map(m=>`<tr><td>${esc(m.label)}</td><td>${format(row.metrics[m.key],m.key,m.unit==='%')}${unitOf(m)}</td><td>${cov(m.key)}</td></tr>`).join('');
+    const note=$('#coverage-note');
+    if(note){const c=k=>row.coverage?.[k];note.textContent=`Coverage varies by metric. Task success: ${c('success')??'—'}/${N}; stage progress: ${c('progress')??'—'}/${N}. ${c('score')==null?'V2W Score coverage was not provided.':`V2W Score: ${c('score')}/${N}.`}`;}
+  }
+  // Corner glyph for a finding card: a small dot pattern, different per card.
+  function analysisGlyph(i){
+    const P=[[0,0,1,0,1,1,1,1,1,1,1,1,0,1,1,1],[1,0,1,0,0,1,0,1,1,0,1,0,0,1,0,1],[0,0,0,1,0,0,1,1,0,1,1,1,1,1,1,1],[1,1,1,1,1,0,0,1,1,0,0,1,1,1,1,1]][i%4];
+    return `<svg class="analysis-glyph" viewBox="0 0 16 16" aria-hidden="true">${P.map((on,k)=>on?`<circle cx="${2+(k%4)*4}" cy="${2+Math.floor(k/4)*4}" r="1.2"/>`:'').join('')}</svg>`;
+  }
+  // Finding figure: each metric as a large value with the baseline beside it ("vs. 20.2% · Fable
+  // 5.1"). Bars only where the two values differ clearly (>= 20% relative), and then both models
+  // get a bar (this model filled, the baseline outlined); near-equal values are called out instead.
+  function analysisFigure(row,keys){
+    const ref=state.board.models.find(m=>m.id==='fable-5-1'&&m.id!==row.id);
+    const refName=ref?ref.name.replace(/^Claude /,''):'';
+    const items=keys.map(k=>{
+      const m=metric(k);if(!m||row.metrics[k]==null)return '';
+      const a=row.metrics[k],b=ref?.metrics?.[k],pct=m.unit==='%';
+      const unit=!['%','0–1','0–100'].includes(m.unit)?esc(m.unit):'';
+      const rel=b!=null?Math.abs(a-b)/(Math.max(Math.abs(a),Math.abs(b))||1):0;
+      const val=v=>`${format(v,k,pct)}${unit?` ${unit}`:''}`;
+      const bars=b!=null&&rel>=0.2?(()=>{const max=Math.max(a,b)||1;return `<div class="af2-bars"><i class="is-a" style="width:${(a/max*100).toFixed(1)}%"></i><i class="is-b" style="width:${(b/max*100).toFixed(1)}%"></i><div class="af2-legend"><span class="is-a">${esc(row.name.replace(/^Claude /,''))}</span><span class="is-b">${esc(refName)}</span></div></div>`;})():'';
+      const note=b==null?'':a===b?'Equal':rel<0.03?'Nearly identical':'';
+      // fixed rows per cell (label / value / baseline / bars or note / coverage) so cells line up;
+      // the sample count sits at the foot of its own cell, never next to a neighbour's label
+      return `<div class="af2-item"><div class="af2-head">${esc(m.short||m.label)} <span aria-hidden="true">${m.direction==='up'?'↑':'↓'}</span></div><div class="af2-value">${format(a,k,pct)}${unit?`<small>${unit}</small>`:''}</div>${b!=null?`<div class="af2-ref">vs. ${val(b)} · ${esc(refName)}</div>`:''}<div class="af2-extra">${bars}${note?`<div class="af2-note">${note}</div>`:''}</div>${row.coverage?.[k]!=null?`<div class="af2-cov">n = ${row.coverage[k]} / ${state.board.instances}</div>`:''}</div>`;
+    }).join('');
+    return items?`<div class="analysis-figure af2">${items}</div>`:'';
   }
   function renderModelAnalysis(id,collection={}){
     const target=$('#model-analysis'),report=state.analysis.models[id];if(!target||!report)return;
     const row=state.board.models.find(m=>m.id===id),findings=row?report.findings||[]:[];
     target.hidden=false;
-    target.innerHTML=`<div class="section-heading"><div><span class="eyebrow section-index">${row?'CAPABILITIES & LIMITS':'THE UPCOMING REPORT'}</span><h2>${row?'What the evidence shows.':'What we will examine.'}</h2><p>${esc(report.intro)}</p></div></div>${findings.length?`<div class="analysis-grid">${findings.map(f=>`<article class="analysis-card"><h3>${esc(f.title)}</h3><p>${esc(f.body)}</p><div class="analysis-metrics">${(f.metric_keys||[]).map(k=>{const m=metric(k);if(!m)return '';return `<div class="analysis-metric"><span>${esc(m.label)} ${m.direction==='up'?'↑':'↓'}</span><strong>${format(row.metrics[k],k,m.unit==='%')}${!['%','0–1','0–100'].includes(m.unit)?` ${esc(m.unit)}`:''}</strong><span>${row.coverage?.[k]!=null?`n=${row.coverage[k]} / ${state.board.instances}`:'Coverage not supplied'}</span></div>`;}).join('')}</div>${(f.case_ids||[]).map(caseId=>{const i=(collection.cases||[]).findIndex(c=>c.id===caseId);return i<0?'':`<a class="analysis-case-link" href="#case-${i+1}" data-analysis-case="${i}">Inspect ${esc(collection.cases[i].title)} ↘</a>`;}).join(' ')}</article>`).join('')}</div>`:''}${report.evidence_priorities?.length?`<ul class="pending-evidence">${report.evidence_priorities.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>`:''}${report.limitations?.length?`<aside class="analysis-limits"><h3>${row?'Evidence and remaining gaps':'Results pending'}</h3><ul>${report.limitations.map(p=>`<li>${esc(p)}</li>`).join('')}</ul></aside>`:''}`;
+    target.innerHTML=`<div class="section-heading"><div><span class="eyebrow section-index">${row?'CAPABILITIES & LIMITS':'THE UPCOMING REPORT'}</span><h2>${row?'What the evidence shows.':'What we will examine.'}</h2><p>${esc(report.intro)}</p></div></div>${findings.length?(()=>{
+      // Editorial layout: findings grouped (Improvements / Limitations); each row is a vertical label,
+      // a hairline, then the text with its metric figure; label side alternates; no numbering.
+      const groups=[];findings.forEach((f,fi)=>{const g=f.group||(fi<2?'Improvements':'Limitations & trade-offs');let G=groups.find(x=>x.name===g);if(!G)groups.push(G={name:g,items:[]});G.items.push(f);});
+      let k=0;
+      // Groups whose findings carry a stamp (findings[].stamp) show it on the tickets instead of a
+      // divider heading; the group name stays available to screen readers.
+      const stamped=g=>G_STAMPED.has(g);
+      const G_STAMPED=new Set(groups.filter(G=>G.items.every(f=>f.stamp)).map(G=>G.name));
+      return `<div class="findings-editorial">${groups.map(G=>`<div class="fe-group ${stamped(G.name)?'is-stamped':''}">${stamped(G.name)?`<h3 class="sr-only">${esc(G.name)}</h3>`:`<div class="fe-group-head"><span class="fe-rule"></span><h3 class="fe-group-title">${esc(G.name)}</h3><span class="fe-rule"></span></div>`}${G.items.map(f=>`<article class="fe-row ${k++%2?'is-flip':''}"><div class="fe-ticket"><span class="fe-tag analysis-label">${esc(f.label||f.title)}</span><span class="fe-line" aria-hidden="true"></span><div class="fe-body"><div class="fe-text"><h4>${esc(f.title)}</h4><p>${esc(f.body)}</p><div class="fe-foot">${f.stamp?`<span class="fe-stamp tone-${esc(f.stamp_tone||'improvement')}" aria-hidden="true">${esc(f.stamp)}</span>`:''}<div class="analysis-links">${(f.case_ids||[]).map(caseId=>{const i=(collection.cases||[]).findIndex(c=>c.id===caseId);return i<0?'':`<a class="analysis-case-link" href="#case-${i+1}" data-analysis-case="${i}">Inspect ${esc(collection.cases[i].title)} ↘</a>`;}).join('')}</div></div></div><div class="fe-figure">${analysisFigure(row,f.metric_keys||[])}</div></div></div></article>`).join('')}</div>`).join('')}</div>`;
+    })():''}${report.evidence_priorities?.length?`<ul class="pending-evidence">${report.evidence_priorities.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>`:''}${report.limitations?.length?`<aside class="analysis-limits"><h3>${row?'Evaluation Notes':'Results pending'}</h3><ul>${report.limitations.map(p=>`<li>${esc(p)}</li>`).join('')}</ul></aside>`:''}`;
+    // All tickets share the height of the tallest one (desktop layout only).
+    const tickets=$$('#model-analysis .fe-ticket');
+    const equalize=()=>{if(!tickets.length||!tickets[0].getBoundingClientRect)return;tickets.forEach(t=>{t.style.minHeight='';});if((globalThis.innerWidth||0)<=760)return;const h=Math.max(...tickets.map(t=>t.offsetHeight||0));/* offsetHeight ignores the scroll-flow scale */tickets.forEach(t=>{t.style.minHeight=`${Math.ceil(h)}px`;});};
+    equalize();globalThis.addEventListener?.('resize',equalize);document.fonts?.ready?.then(equalize);
     $$('[data-analysis-case]').forEach(a=>a.addEventListener('click',()=>{
       const button=$$('#model-update-cases [data-case-index]')[Number(a.dataset.analysisCase)];if(button)button.click();
       $('#model-update-cases')?.scrollIntoView({behavior:'smooth',block:'start'});
@@ -365,6 +481,7 @@
       [state.board,state.archive,state.cases,state.news,state.analysis]=await Promise.all([fetchJSON('data/leaderboard.json'),fetchJSON('data/paper-results.json'),fetchJSON('data/cases.json'),fetchJSON('data/news.json'),fetchJSON('data/model-analysis.json')]);
       commonEvents();
       if(document.body.dataset.page==='home')await initHome();else if(document.body.dataset.page==='opus'){await initUpdate();renderCampaign();}else if(document.body.dataset.page==='news'){renderNews();renderCampaign();}else if(document.body.dataset.page==='model'){await initGenericUpdate();renderNews();}
+      numberSections();
       document.body.dataset.ready='true';
     } catch(error){
       console.error(error);const target=$('#table-body')||$('#model-results-body');if(target)target.innerHTML='<tr><td colspan="7" class="error-note">Results could not load. Please reload the page or download the supplied snapshot.</td></tr>';toast('Some data could not load. Please reload.');

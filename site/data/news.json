@@ -13,7 +13,9 @@
       "model_id": "opus-5-5",
       "href": "updates/opus-5-5.html",
       "image": "assets/opus-5-5-social.png",
-      "snapshot_id": "v2-supplied-2026-10-09"
+      "snapshot_id": "v2-supplied-2026-10-09",
+      "cover": "assets/cases/opus55/01_droid_orange_pick_place/report-cover.webp",
+      "cover_alt": "Claude Opus 5.5 simulation: the robot arm lifts the red block off the table (pick-and-place, verified case)."
     }
   ],
   "campaign": {
