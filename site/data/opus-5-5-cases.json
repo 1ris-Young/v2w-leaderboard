@@ -44,7 +44,7 @@
         "description": "Formal evaluation: task failed.",
         "final": "terminal error 32.46 cm · scene CD 2.40 cm"
       },
-      "analysis": "Fable 5.1's scene is in fact slightly closer (scene CD 2.40 cm vs 2.86 cm), but its leg ends 32.46 cm from the goal; Opus 5.5 ends 2.44 cm away and completes the task. Here the gap is in the actions, not the geometry."
+      "analysis": "Fable 5.1 has slightly lower scene CD (2.40 cm vs 2.86 cm), yet its formal task judgment is a failure; Opus 5.5 passes. Reported terminal errors are 32.46 cm and 2.44 cm respectively. Similar scene-level geometry scores can accompany different task outcomes; these metrics alone do not isolate the cause."
     },
     {
       "id": "droid_guptalab_2023_05_19_11h_15m_41s_orange_hand",
@@ -80,7 +80,7 @@
         "description": "Formal evaluation: task failed.",
         "final": "terminal error 100.00 cm · scene CD 14.17 cm"
       },
-      "analysis": "Opus 5.5 rebuilds the table scene closely (scene CD 1.08 cm vs 14.17 cm for Fable 5.1) and its rollout ends 1.22 cm from the target. Fable 5.1's rollout ends with a terminal error of 100.00 cm, and the task is judged failed."
+      "analysis": "Opus 5.5 passes the formal task evaluation, with scene CD 1.08 cm and reported terminal error 1.22 cm. Fable 5.1 fails, with scene CD 14.17 cm and reported terminal error 100.00 cm. The error is shown as reported by the evaluator; inspect the rollouts alongside the task judgments."
     },
     {
       "id": "dexycb_s01_142517",
@@ -152,7 +152,7 @@
         "description": "Formal evaluation: task failed.",
         "final": "terminal error 24.31 cm · scene CD 3.16 cm"
       },
-      "analysis": "Both models rebuild a similar scene (scene CD 2.18 cm vs 3.16 cm); the difference is in execution. Opus 5.5 ends 5.05 cm from the target, Fable 5.1 24.31 cm."
+      "analysis": "Scene CD is 2.18 cm for Opus 5.5 and 3.16 cm for Fable 5.1. Opus 5.5 passes the formal task evaluation and Fable 5.1 fails, with reported terminal errors of 5.05 cm and 24.31 cm. The source video and both rollouts let you inspect the observed outcome."
     },
     {
       "id": "fbraw_2023-01-22-22_45_54_lamp_bulb",
@@ -188,11 +188,11 @@
         "description": "Formal evaluation: task failed.",
         "final": "terminal error 100.00 cm · scene CD 5.07 cm"
       },
-      "analysis": "Opus 5.5 completes the insertion with a terminal error of 1.41 cm. Fable 5.1's scene is somewhat less accurate (scene CD 5.07 cm vs 3.08 cm) and its rollout ends with a terminal error of 100.00 cm."
+      "analysis": "Opus 5.5 passes the formal insertion-task evaluation, with reported terminal error 1.41 cm. Fable 5.1 fails, with reported terminal error 100.00 cm. Scene CD is 3.08 cm and 5.07 cm respectively. These are the evaluator's reported errors, rather than an independent measurement of distance in the videos."
     }
   ],
-  "analysis_status": "draft, written from manifest.json values (2026-10-14); review before publication",
+  "analysis_status": "Evidence descriptions reviewed for metric and selection boundaries; visual case interpretation remains subject to research review.",
   "featured_case": "droid_guptalab_2023_05_19_11h_15m_41s_orange_hand",
-  "intro": "Each case: the same source video, one world built by each model. In every one, Opus 5.5's robot completes the task and Fable 5.1's does not. Start with the desk leg: Fable 5.1 even rebuilds the scene slightly more accurately, and still fails on the action.",
+  "intro": "Five selected tasks where Opus 5.5 passes and Fable 5.1 fails on the same input video. These examples illustrate observed differences in formal task outcomes; they are not a representative sample of the benchmark.",
   "failure_cases": []
 }

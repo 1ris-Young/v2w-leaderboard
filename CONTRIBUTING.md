@@ -32,7 +32,7 @@ git config user.email "你的 GitHub 邮箱"
 python scripts/add-model.py --input examples/gemini-4-argon-receipt.json --site-origin https://aetherlabsai.github.io/Video2World/leaderboard
 ```
 
-它会同时更新榜单、生成模型详情页、写入 News。receipt 的填法见 `examples/`。
+它会同时更新榜单、生成模型详情页、写入 News。receipt 的填法见 `examples/`；结果、模型分析、案例和联合 Blog 的完整步骤见 [新模型结果录入](docs/ADDING_MODEL_RESULTS.md)。
 
 ## 每次修改的流程
 

@@ -4,6 +4,14 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 const dist=path.resolve(import.meta.dirname,'../site');
 const reviewDir=process.argv[2] ? path.resolve(process.argv[2]) : null;
+const board=JSON.parse(fs.readFileSync(path.join(dist,'data/leaderboard.json'),'utf8'));
+const newsData=JSON.parse(fs.readFileSync(path.join(dist,'data/news.json'),'utf8'));
+const opusCases=JSON.parse(fs.readFileSync(path.join(dist,'data/opus-5-5-cases.json'),'utf8'));
+const publishedNews=newsData.entries.filter(n=>n.status==='published');
+const campaignIds=newsData.campaign.model_ids;
+const campaignResults=campaignIds.filter(id=>board.models.some(m=>m.id===id));
+const publishedRoundup=publishedNews.find(n=>n.kind==='roundup'&&n.href===newsData.campaign.roundup_href);
+const metricText=(row,key)=>Number(row.metrics[key]).toFixed(board.metrics.find(m=>m.key===key).digits);
 const decode=s=>s.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
 const voidTags=new Set(['meta','link','input','img','br','hr','source','wbr']);
 class Element {
@@ -15,6 +23,7 @@ class Element {
   set textContent(s){this._text=String(s);this.children=[];this._html=String(s);}
   get textContent(){return this._text+this.children.map(c=>c.textContent).join('');}
   get content(){return this.attrs.content;}
+  get hidden(){return Object.hasOwn(this.attrs,'hidden');}set hidden(v){if(v)this.attrs.hidden='';else delete this.attrs.hidden;}
   get value(){return this._value;}set value(v){this._value=String(v);}
   setAttribute(k,v){this.attrs[k]=String(v);}getAttribute(k){return this.attrs[k];}removeAttribute(k){delete this.attrs[k];}
   addEventListener(k,fn){(this.listeners[k]??=[]).push(fn);}
@@ -48,7 +57,7 @@ function parse(html){
   return holder.children;
 }
 async function load(file){
-  const localName=({'index.html':'leaderboard.html','updates/opus-5-5.html':'opus-5-5.html','news/index.html':'news.html'})[file];
+  const localName=({'index.html':'leaderboard.html','updates/opus-5-5.html':'opus-5-5.html','news/index.html':'news.html'})[file]||path.basename(file);
   const source=fs.readFileSync(reviewDir?path.join(reviewDir,localName):path.join(dist,file),'utf8');
   const inlineData=source.match(/<script type="application\/json" id="v2w-inline-data">([\s\S]*?)<\/script>/)?.[1];
   const inlineScript=source.match(/<script>('use strict';[\s\S]*?)<\/script>/)?.[1];
@@ -62,36 +71,135 @@ async function load(file){
   assert.equal(doc.body.dataset.ready,'true',errors.join('\n'));
   return {doc,captured,errors,$:s=>doc.querySelector(s),$$:s=>doc.querySelectorAll(s)};
 }
+function checkNews(page,label){
+  const cards=page.$$('.updates-grid a.update-card');
+  assert.equal(cards.length,publishedNews.length+board.pending_models.length,`${label}: published News and Testing reports`);
+  assert.equal(new Set(cards.map(c=>c.getAttribute('href'))).size,cards.length,`${label}: unique report links`);
+  assert.equal(page.$$('.updates-grid a.featured-update').length,publishedNews.length,`${label}: published report count`);
+  assert.equal(page.$$('.updates-grid a.upcoming-update').length,board.pending_models.length,`${label}: Testing report count`);
+  assert.equal(page.$('#campaign-models'),null,`${label}: no duplicated model tiles`);
+  assert.equal(page.$('#campaign-status').textContent,`${campaignResults.length} of ${campaignIds.length} results available`);
+  if(publishedRoundup){
+    assert.equal(campaignResults.length,campaignIds.length,`${label}: no premature joint comparison`);
+    assert.ok(page.$('#campaign-publication a').getAttribute('href').endsWith(publishedRoundup.href),`${label}: published joint analysis link`);
+  }else assert.match(page.$('#campaign-publication').textContent,/preparation|preparing|pending|after|await/i);
+  for(const id of campaignIds){
+    const model=board.models.find(m=>m.id===id);
+    const reports=cards.filter(c=>c.getAttribute('href').endsWith(`updates/${id}.html`));
+    assert.equal(reports.length,1,`${label}: ${id} report link`);
+    assert.ok(reports[0].classList.contains(model?'featured-update':'upcoming-update'),`${label}: ${id} report state`);
+  }
+  for(const card of page.$$('.updates-grid a.upcoming-update')){
+    assert.match(card.textContent,/testing/i);
+    assert.match(card.textContent,/pending|verification|verified|await/i);
+    assert.doesNotMatch(card.textContent,/\d+(?:\.\d+)?\s*%/);
+  }
+}
+function checkNoRemovedSections(page,label){
+  for(const id of ['tier-figure','tier-list','compare','compare-a','compare-b','compare-results'])assert.equal(page.$('#'+id),null,`${label}: obsolete ${id}`);
+  assert.ok(page.$$('a').every(a=>!a.getAttribute('href')?.endsWith('#compare')),`${label}: obsolete Compare link`);
+}
 const home=await load('index.html');
-assert.equal(home.$$('#table-body tr').length,10);
+assert.equal(home.$$('#table-body tr').length,board.models.length);
 assert.match(home.$('#table-body').innerHTML,/52\.41/);
-assert.equal(home.$('#release-title').textContent,'Claude Opus 5.5');
-if(home.$('#campaign-models')){ assert.equal(home.$$('#campaign-models .campaign-model').length,4);assert.match(home.$('#campaign-status').textContent,/1 of 4/);assert.match(home.$('#campaign-models').innerHTML,/Gemini 4 Argon/);assert.match(home.$('#campaign-models').innerHTML,/Meta Muse/);assert.match(home.$('#campaign-models').innerHTML,/GPT-6.1 Sol/);assert.equal(home.$$('.updates-grid a.update-card').length,1);assert.equal(home.$$('.updates-grid .upcoming-update').length,3); }
-assert.equal(home.$$('#rank-podium .podium-card').length,3);
-assert.equal(home.$$('#rank-chart .chart-row').length,10);
-assert.match(home.$('#rank-podium').innerHTML,/\+8\.28 points ahead/);
+assert.equal(home.$('#release-title').textContent,[...board.models].sort((a,b)=>b.metrics.score-a.metrics.score)[0].name);
+checkNews(home,'Home');
+checkNoRemovedSections(home,'Home');
+function checkRanking(key){
+  const ranked=[...board.models].filter(m=>!m.reference).sort((a,b)=>b.metrics[key]-a.metrics[key]);
+  assert.equal(home.$$('#rank-podium .podium-card').length,Math.min(3,ranked.length));
+  assert.equal(home.$$('#rank-chart .chart-row').length,board.models.length);
+  assert.equal(home.$('#rank-podium .podium-leader').dataset.rankModel,ranked[0].id);
+  assert.deepEqual(home.$$('#rank-chart .chart-row').map(r=>r.dataset.rankModel),ranked.map(r=>r.id));
+  if(ranked[1]){
+    const digits=board.metrics.find(m=>m.key===key).digits;
+    const lead=(ranked[0].metrics[key]-ranked[1].metrics[key]).toFixed(digits);
+    assert.ok(home.$('#rank-podium').textContent.includes(`+${lead} ${key==='score'?'points':'pp'} ahead`));
+  }
+}
+checkRanking('score');
 await home.$('[data-chart="success"]').click();
-assert.match(home.$('#rank-podium').innerHTML,/\+9\.2 pp ahead/);
+checkRanking('success');
 assert.equal(home.$('#chart-title').textContent,'Task success');
 await home.$('[data-rank-model="opus-5-5"]').click();
 assert.match(home.$('#model-dialog-content').innerHTML,/n=200 \/ 222/);
 await home.$('.dialog-close').click();
 await home.$('[data-chart="score"]').click();
-assert.match(home.$('#compare-results').innerHTML,/\+8\.28/);
-await home.$('[data-provider="Anthropic"]').click();assert.equal(home.$$('#table-body tr').length,3);
-home.$('#model-search').value='Opus';await home.$('#model-search').emit('input');assert.equal(home.$$('#table-body tr').length,2);
+await home.$('[data-provider="Anthropic"]').click();assert.equal(home.$$('#table-body tr').length,board.models.filter(m=>m.provider==='Anthropic').length);
+home.$('#model-search').value='Opus';await home.$('#model-search').emit('input');assert.equal(home.$$('#table-body tr').length,board.models.filter(m=>m.provider==='Anthropic'&&`${m.name} ${m.provider} ${m.model_id||''}`.toLowerCase().includes('opus')).length);
 home.$('#model-search').value='no-such-model';await home.$('#model-search').emit('input');assert.match(home.$('#table-body').innerHTML,/No models match/);assert.match(home.$('#rank-chart').innerHTML,/No models match/);assert.equal(home.$$('#rank-podium .podium-card').length,0);
 home.$('#model-search').value='';await home.$('#model-search').emit('input');await home.$('[data-provider="All"]').click();
-await home.$('#detail-toggle').click();assert.equal(home.$$('#table-head th').length,14);assert.match(home.$('#table-head').innerHTML,/Fixed-ref/);
+await home.$('#detail-toggle').click();assert.equal(home.$$('#table-head th').length,board.metrics.length+2);assert.match(home.$('#table-head').innerHTML,/Fixed-ref/);
 await home.$('[data-model="opus-5-5"]').click();assert.match(home.$('#model-dialog-content').innerHTML,/n=200 \/ 222/);assert.ok(Object.hasOwn(home.$('#model-dialog').attrs,'open'));
 await home.$('.dialog-close').click();
 if(home.$('#snapshot-paper')){ await home.$('#snapshot-paper').click();assert.match(home.$('#table-body').innerHTML,/Human-assisted reference/);assert.ok(!home.$('#table-body').innerHTML.includes('Claude Opus 5.5'));assert.equal(home.$$('#table-head th').length,12);assert.ok(!home.$('#rank-podium').innerHTML.includes('Human-assisted reference'));assert.ok(!home.$('#rank-podium').innerHTML.includes('Opus 5.5'));assert.equal(home.$$('#rank-chart .chart-row').length,JSON.parse(fs.readFileSync(path.join(dist,'data/paper-results.json'),'utf8')).models.length); }
 if(home.$('#snapshot-current')){ await home.$('#snapshot-current').click(); }
-if(home.$('#case-tabs')){ await home.$('[data-case="lift"]').click();assert.match(home.$('#case-explorer').innerHTML,/passes through solid geometry/); }
-if(home.$('#case-tabs')){ await home.$('#case-play').click();assert.ok(home.$$('.case-video').every(v=>v.plays>0)); }
-if(home.$('#case-tabs')){ await home.$('#case-pause').click();assert.ok(home.$$('.case-video').every(v=>v.pauses>0)); }
-if(home.$('#case-tabs')){ home.$('#case-model-b').value='gemini38flash';await home.$('#case-model-b').emit('change');assert.match(home.$('#case-explorer').innerHTML,/https:\/\/aetherlabsai\.github\.io/);assert.ok(!home.$('#case-explorer').innerHTML.includes('./https://')); }
+const homeVideos=home.$$('#opus-case-explorer video');
+assert.equal(homeVideos.length,3,'Home: source, Opus and baseline clips');
+const featured=opusCases.cases.find(c=>c.id===opusCases.featured_case);
+assert.match(home.$('#opus-case-explorer').textContent,new RegExp(featured.title));
+await home.$('[data-opus-play]').click();assert.ok(homeVideos.every(v=>v.plays===1));
+homeVideos.forEach(v=>v.currentTime=4);
+await home.$('[data-opus-reset]').click();assert.ok(homeVideos.every(v=>v.pauses>=1&&v.currentTime===0));
 const update=await load('updates/opus-5-5.html');assert.equal(update.$$('#model-results-body tr').length,4);assert.match(update.$('#model-results-body').innerHTML,/29\.4%/);
-await update.$('#share-result').click();assert.equal(update.captured[0],'https://example.test/updates/opus-5-5.html');assert.equal(home.errors.length+update.errors.length,0);
-const news=await load('news/index.html');assert.equal(news.$$('.updates-grid a.update-card').length,1);assert.equal(news.$$('#campaign-models .campaign-model').length,4);assert.equal(news.errors.length,0);
-console.log('PASS: application interaction checks in a Node DOM adapter — filters, empty state, sorting setup, all-metric toggle, coverage dialog, archive isolation, model comparison, case switching, playback controls, remote media URL handling, share link and model pages. Browser layout QA was not performed.');
+checkNoRemovedSections(update,'Opus');
+assert.equal(update.$$('#generic-metric-coverage tr').length,board.metrics.length);
+assert.match(update.$('#generic-metric-coverage').textContent,/n=200 \/ 222/);
+assert.ok(update.$('#model-analysis').textContent.trim(),'Opus: evidence-based analysis');
+assert.equal(update.$('#model-update-cases').hidden,false);
+assert.equal(update.$$('[data-case-index]').length,5);
+assert.equal(update.$$('#model-case-view video').length,3);
+const initialVideos=update.$$('#model-case-view video');
+await update.$('[data-case-play]').click();assert.ok(initialVideos.every(v=>v.plays===1));
+initialVideos.forEach(v=>v.currentTime=5);
+await update.$('[data-case-reset]').click();assert.ok(initialVideos.every(v=>v.pauses>=1&&v.currentTime===0));
+await update.$('[data-case-index="1"]').click();
+assert.equal(update.$('[data-case-index="1"]').getAttribute('aria-selected'),'true');
+assert.equal(update.$('[data-case-index="0"]').getAttribute('aria-selected'),'false');
+assert.match(update.$('#model-case-view').textContent,new RegExp(opusCases.cases[1].title));
+assert.ok(initialVideos.every(v=>v.pauses>=2),'Case switching pauses the previous clips');
+assert.equal(update.$$('#model-case-view video').length,3);
+await update.$('#share-result').click();assert.equal(update.captured[0],'https://example.test/updates/opus-5-5.html');
+assert.equal(home.errors.length+update.errors.length,0);
+for(const id of campaignIds.filter(id=>id!=='opus-5-5')){
+  const model=board.models.find(m=>m.id===id),pending=board.pending_models.find(m=>m.id===id);
+  const page=await load(`updates/${id}.html`),name=(model||pending).name;
+  checkNoRemovedSections(page,name);
+  assert.equal(page.$('#generic-results').hidden,!model,`${name}: results visibility`);
+  assert.equal(page.$('#generic-pending').hidden,!!model,`${name}: Testing explanation visibility`);
+  assert.equal(page.doc.body.dataset.modelStatus,model?'results':'testing',`${name}: measured or Testing status`);
+  assert.ok(page.$('#model-analysis').textContent.trim(),`${name}: analysis or evidence priorities`);
+  assert.ok(page.$$('[data-result-only]').length>0,`${name}: result-only controls declared`);
+  if(model){
+    const modelUpdate=board.updates.find(u=>u.model_id===id)||{};
+    const comparisons=(modelUpdate.compare_ids||[...board.models].filter(m=>m.id!==id).sort((a,b)=>b.metrics.score-a.metrics.score).slice(0,2).map(m=>m.id)).filter(id=>board.models.some(m=>m.id===id));
+    assert.equal(page.$$('#model-results-body tr').length,comparisons.length+1,`${name}: measured comparison rows`);
+    assert.equal(page.$$('#generic-metric-coverage tr').length,board.metrics.length,`${name}: complete metric profile`);
+    assert.ok(page.$('#generic-score').innerHTML.startsWith(metricText(model,'score')+'<small>'),`${name}: measured overall score`);
+    assert.equal(page.$('#generic-success').textContent,metricText(model,'success')+'%',`${name}: measured task success`);
+    assert.equal(page.$('#generic-build').textContent,metricText(model,'build')+'%',`${name}: measured build rate`);
+    assert.doesNotMatch(page.$('#generic-model-intro').textContent,/being tested|results pending/i,`${name}: Testing copy replaced`);
+    assert.doesNotMatch(page.$('#model-analysis').textContent,/being tested|no verified result is available/i,`${name}: stale Testing analysis replaced`);
+    const collection=JSON.parse(fs.readFileSync(path.join(dist,`data/${id}-cases.json`),'utf8'));
+    assert.equal(collection.model_id,id,`${name}: case collection attribution`);
+    const count=collection.cases?.length||0;
+    assert.equal(page.$('#model-update-cases').hidden,count===0,`${name}: verified case visibility`);
+    assert.equal(page.$$('[data-case-index]').length,count,`${name}: verified case choices`);
+    assert.equal(page.$('#model-cases-status').hidden,count>0,`${name}: media awaiting notice`);
+    assert.ok(page.$$('[data-result-only]').filter(el=>el.attrs.id!=='model-cases-status').every(el=>!el.hidden),`${name}: measured controls visible`);
+    await page.$('#share-result').click();assert.equal(page.captured[0],`https://example.test/updates/${id}.html`,`${name}: result share link`);
+    assert.equal(page.errors.length,0,`${name}: no application error`);
+    continue;
+  }
+  assert.match(page.$('#generic-pending').textContent,/testing/i);
+  assert.match(page.$('#generic-pending').textContent,/pending|verification|verified|await/i);
+  assert.equal(page.$$('#model-results-body tr').length,0,`${pending.name}: no invented results`);
+  assert.equal(page.$$('#generic-metric-coverage tr').length,0,`${pending.name}: no invented metrics`);
+  for(const id of ['generic-score','generic-success','generic-build'])assert.doesNotMatch(page.$('#'+id).textContent,/\d/);
+  assert.ok(page.$$('[data-result-only]').every(el=>el.hidden),`${pending.name}: score and data downloads hidden`);
+  assert.equal(page.$('#model-update-cases').hidden,true,`${pending.name}: no attributed case outputs`);
+  assert.equal(page.captured.length,0,`${pending.name}: no result shared while testing`);
+  assert.equal(page.errors.length,0,`${pending.name}: no application error`);
+}
+const news=await load('news/index.html');checkNews(news,'News');checkNoRemovedSections(news,'News');assert.equal(news.errors.length,0);
+console.log('PASS: ranking, filters, empty states, metric and coverage dialogs, archive isolation, four linked model reports, pending-page visibility, Opus case switching and playback/reset, featured case and sharing. Browser layout QA was not performed.');

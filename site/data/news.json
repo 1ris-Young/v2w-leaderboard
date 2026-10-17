@@ -5,7 +5,7 @@
     {
       "id": "opus-5-5",
       "title": "Opus 5.5: 2.56× task success over Opus 5",
-      "summary": "29.4% task success and 52.41 V2WScore in the supplied evaluation snapshot. Inspect the gains and remaining gaps.",
+      "summary": "52.41 V2WScore and 29.4% task success in the supplied snapshot. Examine build reliability, physical fidelity, remaining gaps and five selected execution cases.",
       "date": "2026-10-09",
       "date_label": "Result snapshot",
       "status": "published",
@@ -18,8 +18,8 @@
   ],
   "campaign": {
     "id": "frontier-four-2026-10",
-    "title": "Who builds the best physical world?",
-    "description": "One benchmark. Four frontier models. Compare executable worlds, task completion and physical fidelity.",
+    "title": "Four flagship models. One benchmark.",
+    "description": "A joint comparison of Claude Opus 5.5, Gemini 4 Argon, Meta Muse and GPT-6.1 Sol, supported by individual model reports and verified executions.",
     "status": "testing",
     "model_ids": [
       "opus-5-5",
@@ -28,7 +28,8 @@
       "gpt-6-1-sol"
     ],
     "release_rule": "Publish the joint comparison after all four results are verified on a compatible protocol.",
-    "planned_result_window": "2026-10-14 to 2026-10-15 (team estimate; not a publication promise)",
-    "roundup_href": null
+    "roundup_href": null,
+    "publication_status": "in_preparation",
+    "publication_note": "Joint blog · in preparation. Individual model reports are linked below."
   }
 }
