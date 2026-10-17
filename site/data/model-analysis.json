@@ -5,8 +5,8 @@
       "intro": "The snapshot shows stronger task outcomes and more executable builds. The diagnostic profile is mixed, so the overall lead should be read alongside the component metrics and selected case evidence.",
       "findings": [
         {
-          "title": "More tasks completed, more stages reached",
-          "body": "Opus 5.5 has the highest task success and stage progress among the models in this supplied snapshot. Both improve over Opus 5 and Fable 5.1. The five verified clips show concrete successful outcomes across several task families, while their selection deliberately favors this contrast.",
+          "title": "Higher task success and progress",
+          "body": "Opus 5.5 leads the evaluated models in both task success and task progress. Together, these metrics capture not only whether a task is completed, but also how far execution proceeds. The selected cases illustrate these differences in practice, rather than represent the full test set.",
           "metric_keys": [
             "success",
             "progress"
@@ -14,19 +14,27 @@
           "case_ids": [
             "droid_guptalab_2023_05_19_11h_15m_41s_orange_hand",
             "dexycb_s01_142517"
-          ]
+          ],
+          "label": "Task performance",
+          "group": "Improvements",
+          "stamp": "Improvements",
+          "stamp_tone": "improvement"
         },
         {
-          "title": "Executability is a relative strength",
-          "body": "Build rate is the highest in the current snapshot. This measures how often the generated world executes; task success separately measures whether execution completes the intended interaction. A successful build does not guarantee a successful task.",
+          "title": "More executable worlds",
+          "body": "Opus 5.5 achieves the highest build rate among the evaluated models, producing executable worlds more consistently. However, a world that runs successfully may still fail to reproduce the intended interaction. Evaluating build rate and task success separately distinguishes executable environment construction from successful task execution.",
           "metric_keys": [
             "build",
             "success"
-          ]
+          ],
+          "label": "Executability",
+          "group": "Improvements",
+          "stamp": "Improvements",
+          "stamp_tone": "improvement"
         },
         {
-          "title": "Similar geometry can accompany different outcomes",
-          "body": "Scene, object-shape and object-size errors are close to Fable 5.1 in aggregate. In the desk-leg case, Fable 5.1 has a slightly lower scene error but fails the task, while Opus 5.5 passes. This demonstrates why geometry and task outcome are reported separately; it does not isolate a cause.",
+          "title": "Similar geometry, different outcomes",
+          "body": "Scene, shape, and size errors are similar across the two models, yet task outcomes can differ. In the desk-leg insertion case, Opus 5.5 succeeds while Fable 5.1 fails despite achieving a slightly lower scene error. Geometric accuracy alone does not fully explain task performance.",
           "metric_keys": [
             "scene_cd",
             "shape_cd",
@@ -34,23 +42,31 @@
           ],
           "case_ids": [
             "fbraw_2023-01-26-00_00_38_desk_leg2"
-          ]
+          ],
+          "label": "Geometry vs. outcome",
+          "group": "Limitations & trade-offs",
+          "stamp": "Insight",
+          "stamp_tone": "insight"
         },
         {
-          "title": "The lead does not cover every diagnostic",
-          "body": "Fixed-ref Task is lower than Fable 5.1, while Fixed-ref Progress is equal. Terminal relative translation error is close between the two. These diagnostics identify limits to the overall gain, subject to the supplied coverage and missing full run configuration.",
+          "title": "Not all metrics show improvement.",
+          "body": "Despite stronger overall results, Opus 5.5 scores lower than Fable 5.1 on fixed-reference task success (8.6% vs. 11.4%). Fixed-reference progress is equal at the reported precision, while terminal translation errors remain similar. These results suggest that its gains do not extend uniformly across all evaluation metrics.",
           "metric_keys": [
             "fixed_success",
             "fixed_progress",
             "terminal_trans"
-          ]
+          ],
+          "label": "Diagnostic limits",
+          "group": "Limitations & trade-offs",
+          "stamp": "Limitation",
+          "stamp_tone": "limitation"
         }
       ],
       "limitations": [
-        "The displayed cases are five selected Opus-success / Fable-failure pairs from 24 matching pairs across 222 common cases. They are illustrative rather than a representative sample.",
-        "No verified Opus 5.5 failure clips are supplied in this collection. Do not infer a complete failure taxonomy from selected successes.",
-        "Feedback use and recovery through revision are not assessed by these final metrics or rollouts. Agent iteration logs and revision trajectories are needed.",
-        "The supplied snapshot omits complete run settings and aggregate-score coverage; per-metric coverage differs. Paper results must remain separate."
+        "The five featured cases were selected from 24 Opus-success/Fable-failure pairs among 222 shared cases. They illustrate specific differences rather than overall performance.",
+        "This collection does not include verified Opus 5.5 failure cases and therefore cannot characterize its failure modes.",
+        "Final outcomes do not capture how agents use feedback or recover from errors. Evaluating these behaviors requires iteration logs.",
+        "Complete run configurations and score coverage are not available in the current results. Sample sizes vary across metrics."
       ],
       "evidence_priorities": []
     },

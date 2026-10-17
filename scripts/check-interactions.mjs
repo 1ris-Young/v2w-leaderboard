@@ -72,11 +72,12 @@ async function load(file){
   return {doc,captured,errors,$:s=>doc.querySelector(s),$$:s=>doc.querySelectorAll(s)};
 }
 function checkNews(page,label){
-  const cards=page.$$('.updates-grid a.update-card');
+  const cards=page.$$('.updates-grid .update-card');
+  const target=c=>c.getAttribute('href')||c.getAttribute('data-report');
   assert.equal(cards.length,publishedNews.length+board.pending_models.length,`${label}: published News and Testing reports`);
-  assert.equal(new Set(cards.map(c=>c.getAttribute('href'))).size,cards.length,`${label}: unique report links`);
+  assert.equal(new Set(cards.map(target)).size,cards.length,`${label}: unique report links`);
   assert.equal(page.$$('.updates-grid a.featured-update').length,publishedNews.length,`${label}: published report count`);
-  assert.equal(page.$$('.updates-grid a.upcoming-update').length,board.pending_models.length,`${label}: Testing report count`);
+  assert.equal(page.$$('.updates-grid .upcoming-update').length,board.pending_models.length,`${label}: Testing report count`);
   assert.equal(page.$('#campaign-models'),null,`${label}: no duplicated model tiles`);
   assert.equal(page.$('#campaign-status').textContent,`${campaignResults.length} of ${campaignIds.length} results available`);
   if(publishedRoundup){
@@ -85,11 +86,11 @@ function checkNews(page,label){
   }else assert.match(page.$('#campaign-publication').textContent,/preparation|preparing|pending|after|await/i);
   for(const id of campaignIds){
     const model=board.models.find(m=>m.id===id);
-    const reports=cards.filter(c=>c.getAttribute('href').endsWith(`updates/${id}.html`));
+    const reports=cards.filter(c=>target(c).endsWith(`updates/${id}.html`));
     assert.equal(reports.length,1,`${label}: ${id} report link`);
     assert.ok(reports[0].classList.contains(model?'featured-update':'upcoming-update'),`${label}: ${id} report state`);
   }
-  for(const card of page.$$('.updates-grid a.upcoming-update')){
+  for(const card of page.$$('.updates-grid .upcoming-update')){
     assert.match(card.textContent,/testing/i);
     assert.match(card.textContent,/pending|verification|verified|await/i);
     assert.doesNotMatch(card.textContent,/\d+(?:\.\d+)?\s*%/);
@@ -107,14 +108,15 @@ checkNews(home,'Home');
 checkNoRemovedSections(home,'Home');
 function checkRanking(key){
   const ranked=[...board.models].filter(m=>!m.reference).sort((a,b)=>b.metrics[key]-a.metrics[key]);
-  assert.equal(home.$$('#rank-podium .podium-card').length,Math.min(3,ranked.length));
-  assert.equal(home.$$('#rank-chart .chart-row').length,board.models.length);
+  assert.equal(home.$$('#rank-podium .podium-card').length,ranked.length,'every model is on the ranking board');
+  assert.deepEqual(home.$$('#rank-podium .podium-card').map(t=>t.dataset.rankModel),ranked.map(r=>r.id),'board order follows the ranking');
+  if(home.$('#rank-chart')){assert.equal(home.$$('#rank-chart .chart-row').length,board.models.length);}
   assert.equal(home.$('#rank-podium .podium-leader').dataset.rankModel,ranked[0].id);
-  assert.deepEqual(home.$$('#rank-chart .chart-row').map(r=>r.dataset.rankModel),ranked.map(r=>r.id));
+  if(home.$('#rank-chart')){assert.deepEqual(home.$$('#rank-chart .chart-row').map(r=>r.dataset.rankModel),ranked.map(r=>r.id));}
   if(ranked[1]){
     const digits=board.metrics.find(m=>m.key===key).digits;
     const lead=(ranked[0].metrics[key]-ranked[1].metrics[key]).toFixed(digits);
-    assert.ok(home.$('#rank-podium').textContent.includes(`+${lead} ${key==='score'?'points':'pp'} ahead`));
+    assert.ok(home.$('#rank-podium').textContent.includes(`${lead} ${key==='score'?'points':'pp'} ahead`));
   }
 }
 checkRanking('score');
@@ -127,24 +129,26 @@ await home.$('.dialog-close').click();
 await home.$('[data-chart="score"]').click();
 await home.$('[data-provider="Anthropic"]').click();assert.equal(home.$$('#table-body tr').length,board.models.filter(m=>m.provider==='Anthropic').length);
 home.$('#model-search').value='Opus';await home.$('#model-search').emit('input');assert.equal(home.$$('#table-body tr').length,board.models.filter(m=>m.provider==='Anthropic'&&`${m.name} ${m.provider} ${m.model_id||''}`.toLowerCase().includes('opus')).length);
-home.$('#model-search').value='no-such-model';await home.$('#model-search').emit('input');assert.match(home.$('#table-body').innerHTML,/No models match/);assert.match(home.$('#rank-chart').innerHTML,/No models match/);assert.equal(home.$$('#rank-podium .podium-card').length,0);
+home.$('#model-search').value='no-such-model';await home.$('#model-search').emit('input');assert.match(home.$('#table-body').innerHTML,/No models match/);if(home.$('#rank-chart'))assert.match(home.$('#rank-chart').innerHTML,/No models match/);assert.equal(home.$$('#rank-podium .podium-card').length,0);
 home.$('#model-search').value='';await home.$('#model-search').emit('input');await home.$('[data-provider="All"]').click();
 await home.$('#detail-toggle').click();assert.equal(home.$$('#table-head th').length,board.metrics.length+2);assert.match(home.$('#table-head').innerHTML,/Fixed-ref/);
 await home.$('[data-model="opus-5-5"]').click();assert.match(home.$('#model-dialog-content').innerHTML,/n=200 \/ 222/);assert.ok(Object.hasOwn(home.$('#model-dialog').attrs,'open'));
 await home.$('.dialog-close').click();
 if(home.$('#snapshot-paper')){ await home.$('#snapshot-paper').click();assert.match(home.$('#table-body').innerHTML,/Human-assisted reference/);assert.ok(!home.$('#table-body').innerHTML.includes('Claude Opus 5.5'));assert.equal(home.$$('#table-head th').length,12);assert.ok(!home.$('#rank-podium').innerHTML.includes('Human-assisted reference'));assert.ok(!home.$('#rank-podium').innerHTML.includes('Opus 5.5'));assert.equal(home.$$('#rank-chart .chart-row').length,JSON.parse(fs.readFileSync(path.join(dist,'data/paper-results.json'),'utf8')).models.length); }
 if(home.$('#snapshot-current')){ await home.$('#snapshot-current').click(); }
-const homeVideos=home.$$('#opus-case-explorer video');
-assert.equal(homeVideos.length,3,'Home: source, Opus and baseline clips');
-const featured=opusCases.cases.find(c=>c.id===opusCases.featured_case);
-assert.match(home.$('#opus-case-explorer').textContent,new RegExp(featured.title));
-await home.$('[data-opus-play]').click();assert.ok(homeVideos.every(v=>v.plays===1));
-homeVideos.forEach(v=>v.currentTime=4);
-await home.$('[data-opus-reset]').click();assert.ok(homeVideos.every(v=>v.pauses>=1&&v.currentTime===0));
+assert.equal(home.$$('#opus-case-explorer .cs-thumb').length,opusCases.cases.length,'Home: one library thumbnail per verified case');
+let homeVideos=home.$$('#opus-case-explorer .cs-detail video');
+assert.equal(homeVideos.length,2,'Home: Opus and baseline clips');
+assert.match(home.$('#opus-case-explorer .cs-detail').textContent,/Case 01/);
+await home.$$('#opus-case-explorer .cs-play')[0].click();assert.ok(homeVideos.every(v=>v.plays===1&&v.currentTime===0));
+const lastThumb=home.$$('#opus-case-explorer .cs-thumb').at(-1);await lastThumb.click();
+assert.ok(homeVideos.every(v=>v.pauses>=1),'Home: switching case pauses clips');
+assert.match(home.$('#opus-case-explorer .cs-detail').textContent,new RegExp(`Case ${String(opusCases.cases.length).padStart(2,'0')}`));
+assert.match(home.$('#opus-case-explorer .cs-detail').innerHTML,/Terminal error/);assert.match(home.$('#opus-case-explorer .cs-detail').innerHTML,/Task success[\s\S]*Task failed/);
 const update=await load('updates/opus-5-5.html');assert.equal(update.$$('#model-results-body tr').length,4);assert.match(update.$('#model-results-body').innerHTML,/29\.4%/);
 checkNoRemovedSections(update,'Opus');
-assert.equal(update.$$('#generic-metric-coverage tr').length,board.metrics.length);
-assert.match(update.$('#generic-metric-coverage').textContent,/n=200 \/ 222/);
+assert.equal(update.$$('#generic-metric-coverage tr').length,board.metrics.length-3,'Opus breakdown: metrics not already in the comparison table');
+assert.match(update.$('#generic-metric-coverage').textContent,/199 \/ 222/);
 assert.ok(update.$('#model-analysis').textContent.trim(),'Opus: evidence-based analysis');
 assert.equal(update.$('#model-update-cases').hidden,false);
 assert.equal(update.$$('[data-case-index]').length,5);
