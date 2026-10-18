@@ -1,6 +1,6 @@
 # Result snapshot as of 17 October 2026
 
-This documents the prepared website snapshot `v2-published-2026-10-17`. It does not state that local changes have been deployed or the joint Blog approved for publication.
+This documents the prepared website snapshot `v2-published-2026-10-17`. It does not state that local changes have been deployed or an article approved for publication. The public project page and arXiv are existing entry points; the project's reserved leaderboard connection remains pending.
 
 ## Sources and scope
 
@@ -78,4 +78,6 @@ The [9 October supplied screenshot](../site/data/archive/2026-10-09-leaderboard.
 
 The collection originally chose five of 24 Opus-success / Fable-failure pairs across 222 shared cases. It is an illustrative, directed selection, not a random sample estimating four-model win rates. Use the full leaderboard for aggregate findings. Formal outcomes alone do not establish feedback use, recovery or a failure's cause.
 
-Three model reports are available in the prepared website. The joint four-model Blog remains in preparation until Gemini, protocol review, article review and publication approval are complete.
+Three model reports are available in the prepared website. Independent News retains those reports, and the leaderboard's compact top News feed links each update to its model page; the project page's upper-right floating News entry is intended to direct readers to independent News.
+
+The four-model comparison article remains in preparation until Gemini, protocol review, article review and publication approval are complete. The company Blog / Jinzhou's method explanation and technical report follows a separate editorial workflow; its publication is not gated on the number of flagship results. No company Blog URL or live-publication status is asserted here.

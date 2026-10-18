@@ -131,6 +131,9 @@ for(const htmlFile of ['index.html','news/index.html',...fs.readdirSync(path.joi
   }
   for(const a of [...html.matchAll(/href="#([^"]+)"/g)])assert.ok(ids.includes(a[1]),`${htmlFile}: broken anchor ${a[1]}`);
 }
+const homeHTML=read('index.html');
+assert.ok(homeHTML.indexOf('id="updates"')>=0&&homeHTML.indexOf('id="updates"')<homeHTML.indexOf('id="leaderboard"'),'Homepage News appears before the leaderboard');
+for(const id of ['latest-model-news','pending-model-news'])assert.ok(homeHTML.includes(`id="${id}"`),`Homepage declares ${id}`);
 assert.equal(news.campaign.model_ids.length,4);
 assert.equal(new Set(news.campaign.model_ids).size,4);
 assert.ok(board.pending_models.every(m=>!board.models.some(r=>r.id===m.id)));

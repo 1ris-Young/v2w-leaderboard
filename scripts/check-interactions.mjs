@@ -105,14 +105,43 @@ function checkNews(page,label){
     assert.doesNotMatch(card.textContent,/\d+(?:\.\d+)?\s*%/);
   }
 }
+function checkHomeNews(page){
+  const reports=publishedNews.filter(entry=>entry.kind==='model_result').sort((a,b)=>b.date.localeCompare(a.date)).slice(0,4);
+  const rows=page.$$('#latest-model-news a.model-news-row');
+  assert.equal(page.$$('section')[0]?.attrs.id,'updates','Model News is the first homepage section');
+  assert.ok(descendants(page.doc).indexOf(page.$('#updates'))<descendants(page.doc).indexOf(page.$('#leaderboard')),'Model News precedes the leaderboard');
+  assert.equal(rows.length,reports.length,'Homepage shows up to four recent model reports');
+  assert.deepEqual(rows.map(row=>row.dataset.newsId),reports.map(entry=>entry.id),'Homepage report rows follow the latest result dates');
+  assert.ok(page.$('#updates').querySelectorAll('a').some(link=>link.getAttribute('href')?.endsWith('news/index.html')),'Homepage links to the complete News archive');
+  assert.equal(new Set(rows.map(row=>row.dataset.newsId)).size,rows.length,'Homepage report rows are unique');
+  for(const entry of reports){
+    const row=rows.find(item=>item.dataset.newsId===entry.id),model=board.models.find(m=>m.id===entry.model_id);
+    assert.ok(row,`${entry.id}: homepage report row exists`);
+    assert.equal(row.dataset.model,entry.model_id,`${entry.id}: row points to the measured model`);
+    assert.ok(row.getAttribute('href').endsWith(entry.href),`${entry.id}: row links to its independent report`);
+    assert.equal(row.querySelector('.model-news-name').textContent,model.name,`${entry.id}: report model name`);
+    assert.ok(row.querySelector('.model-news-finding').textContent.trim(),`${entry.id}: report finding is present`);
+    assert.ok(row.querySelector('.model-news-arrow'),`${entry.id}: report link affordance`);
+    const date=row.querySelector('time.model-news-date');
+    assert.equal(date?.getAttribute('datetime'),entry.date,`${entry.id}: report date follows News source data`);
+    if(/snapshot/i.test(entry.date_label||''))assert.doesNotMatch(date.textContent,/published|blog date/i,`${entry.id}: snapshot date is not presented as a blog publication date`);
+  }
+  const pending=page.$('#pending-model-news');
+  assert.ok(pending,'Unmeasured models have a separate homepage area');
+  assert.deepEqual(pending.querySelectorAll('.pending-model-name').map(el=>el.textContent).sort(),board.pending_models.map(m=>m.name).sort(),'Only unmeasured model names appear in the pending area');
+  assert.equal(pending.querySelectorAll('a').length,0,'Pending models are not presented as published report links');
+  if(board.pending_models.length)assert.match(pending.textContent,/coming soon/i);
+  assert.doesNotMatch(pending.textContent,/\d+(?:\.\d+)?\s*%|\d+(?:\.\d+)?\s*V2WScore/i,'Pending models have no invented scores');
+  for(const id of ['campaign-title','campaign-status','campaign-publication','release-title'])assert.equal(page.$('#'+id),null,`Homepage omits the old ${id} presentation`);
+  assert.equal(page.$('.release-highlight'),null,'Homepage uses the compact introduction');
+}
 function checkNoRemovedSections(page,label){
   for(const id of ['tier-figure','tier-list','compare','compare-a','compare-b','compare-results'])assert.equal(page.$('#'+id),null,`${label}: obsolete ${id}`);
   assert.ok(page.$$('a').every(a=>!a.getAttribute('href')?.endsWith('#compare')),`${label}: obsolete Compare link`);
 }
 const home=await load('index.html');
 assert.equal(home.$$('#table-body tr').length,board.models.length);
-assert.equal(home.$('#release-title').textContent,[...board.models].sort((a,b)=>b.metrics.score-a.metrics.score)[0].name);
-checkNews(home,'Home');
+checkHomeNews(home);
 checkNoRemovedSections(home,'Home');
 const metricViews=home.$$('[data-metric-view]');
 assert.deepEqual(metricViews.map(b=>b.dataset.metricView),['all','Geometry','Dynamics','Functionality','key'],'metric tabs follow the requested order');
@@ -184,7 +213,7 @@ home.$('#model-search').value='Opus';await home.$('#model-search').emit('input')
 home.$('#model-search').value='no-such-model';await home.$('#model-search').emit('input');assert.match(home.$('#table-body').innerHTML,/No models match/);if(home.$('#rank-chart'))assert.match(home.$('#rank-chart').innerHTML,/No models match/);assert.equal(home.$$('#rank-podium .podium-card').length,0);
 home.$('#model-search').value='';await home.$('#model-search').emit('input');await home.$('[data-provider="All"]').click();
 await home.$('#detail-toggle').click();assert.equal(home.$$('#table-head th').length,board.metrics.length+2);assert.match(home.$('#table-head').innerHTML,/Fixed-ref/);
-await home.$('[data-model="opus-5-5"]').click();assert.ok(Object.hasOwn(home.$('#model-dialog').attrs,'open'));
+await home.$('#table-body [data-model="opus-5-5"]').click();assert.ok(Object.hasOwn(home.$('#model-dialog').attrs,'open'));
 await home.$('.dialog-close').click();
 if(home.$('#snapshot-paper')){
   await home.$('#snapshot-paper').click();
