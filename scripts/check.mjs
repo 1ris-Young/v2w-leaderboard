@@ -133,7 +133,7 @@ for(const htmlFile of ['index.html','news/index.html',...fs.readdirSync(path.joi
 }
 const homeHTML=read('index.html');
 assert.ok(homeHTML.indexOf('id="updates"')>=0&&homeHTML.indexOf('id="updates"')<homeHTML.indexOf('id="leaderboard"'),'Homepage News appears before the leaderboard');
-for(const id of ['latest-model-news','pending-model-news'])assert.ok(homeHTML.includes(`id="${id}"`),`Homepage declares ${id}`);
+for(const id of ['latest-model-news','news-brief'])assert.ok(homeHTML.includes(`id="${id}"`),`Homepage declares ${id}`);
 assert.equal(news.campaign.model_ids.length,4);
 assert.equal(new Set(news.campaign.model_ids).size,4);
 assert.ok(board.pending_models.every(m=>!board.models.some(r=>r.id===m.id)));
@@ -149,7 +149,13 @@ if(news.campaign.publication_status==='published'||news.campaign.roundup_href||p
 for(const id of news.campaign.model_ids){
   const measured=board.models.some(m=>m.id===id),pending=board.pending_models.some(m=>m.id===id);
   assert.ok(measured||pending,`${id}: missing campaign model`);
-  assert.ok(fs.existsSync(path.join(dist,`updates/${id}.html`)),`${id}: model report page missing`);
+  const newsEntry=news.entries.find(n=>n.kind==='model_result'&&n.model_id===id&&n.status==='published');
+  if(newsEntry?.detail==='brief'){
+    // brief news: no standalone page; the dialog needs its headline, cover and case collection
+    for(const k of ['headline','dek','cover','cases'])assert.ok(newsEntry[k],`${id}: brief news needs ${k}`);
+    assert.ok(fs.existsSync(path.join(dist,newsEntry.cover)),`${id}: brief cover missing`);
+    assert.ok(!fs.existsSync(path.join(dist,`updates/${id}.html`)),`${id}: brief news should not keep a standalone page`);
+  }else assert.ok(fs.existsSync(path.join(dist,`updates/${id}.html`)),`${id}: model report page missing`);
   const reports=news.entries.filter(n=>n.kind==='model_result'&&n.model_id===id&&n.status==='published');
   assert.equal(reports.length,measured?1:0,`${id}: publication must match measured or Testing state`);
   if(measured){
@@ -164,8 +170,9 @@ for(const id of news.campaign.model_ids){
   }
 }
 for(const entry of news.entries){
-  if(!remote(entry.href))assert.ok(fs.existsSync(path.join(dist,entry.href)),`${entry.id}: missing News target`);
-  for(const key of ['image','cover'])if(entry[key]&&!remote(entry[key]))assert.ok(fs.existsSync(path.join(dist,entry[key])),`${entry.id}: missing News ${key}`);
+  if(entry.detail==='brief')assert.ok(!entry.href,`${entry.id}: brief news opens a dialog, not a page`);
+  else if(!remote(entry.href))assert.ok(fs.existsSync(path.join(dist,entry.href)),`${entry.id}: missing News target`);
+  for(const key of ['image','cover','cover_video'])if(entry[key]&&!remote(entry[key]))assert.ok(fs.existsSync(path.join(dist,entry[key])),`${entry.id}: missing News ${key}`);
   if(entry.status==='published'&&entry.kind==='model_result')assert.ok(board.models.some(m=>m.id===entry.model_id),`${entry.id}: published result is unscored`);
 }
 const analysis=JSON.parse(read('data/model-analysis.json'));

@@ -1,10 +1,12 @@
 --- a/src/data/site.json
 +++ b/src/data/site.json
-@@ -140,9 +140,9 @@
+@@ -139,10 +139,10 @@
+     },
      {
        "id": "leaderboard",
-       "label": "Leaderboard",
+-      "label": "Leaderboard",
 -      "url": null,
++      "label": "Live Leaderboard",
 +      "url": "leaderboard/",
        "featured": true,
 -      "note": "Public leaderboard and submissions, coming soon"
@@ -12,51 +14,473 @@
      },
      {
        "id": "eval",
+--- a/src/data/abstract.json
++++ b/src/data/abstract.json
+@@ -36,9 +36,9 @@
+         "resource": "Dataset"
+       },
+       {
+-        "label": "Leaderboard",
++        "label": "Live Leaderboard",
+         "icon": "board",
+-        "resource": "Leaderboard"
++        "resource": "Live Leaderboard"
+       }
+     ]
+   },
 --- a/src/components/Navbar.astro
 +++ b/src/components/Navbar.astro
-@@ -5,6 +5,18 @@
- const sections = ['Abstract', 'Tasks', 'Evaluation', 'Results', 'Experiments'];
+@@ -2,9 +2,19 @@
+ import site from '../data/site.json';
+ import { asset } from '../lib/paths';
+ import { ICONS, resourceIcon } from '../lib/icons';
+-const sections = ['Abstract', 'Tasks', 'Evaluation', 'Results', 'Experiments'];
++// [label, section id]. The paper's results table is frozen at publication; the live ranking is the board pill.
++const sections = [['Abstract','abstract'], ['Tasks','tasks'], ['Evaluation','evaluation'], ['Paper Results','results'], ['Experiments','experiments']];
  // The public leaderboard gets its own pill after Paper and Code (coming soon until it has a URL).
- const board = site.resources.find((r) => r.label === 'Leaderboard');
-+// "NEW" pill: the latest published entry of the leaderboard's own News feed
-+// (public/leaderboard/data/news.json, copied in from the leaderboard repository). No feed, no pill.
-+import { readFileSync } from 'node:fs';
-+type NewsEntry = { title: string; href: string; status: string; date: string; nav_label?: string };
-+let latestNews: NewsEntry | undefined;
-+try {
-+  const feed = JSON.parse(readFileSync('public/leaderboard/data/news.json', 'utf8')) as { entries: NewsEntry[] };
-+  latestNews = feed.entries.filter((e) => e.status === 'published').sort((a, b) => b.date.localeCompare(a.date))[0];
-+} catch {
-+  latestNews = undefined;
-+}
-+const newsLabel = latestNews ? (latestNews.nav_label ?? latestNews.title.split(':')[0]) : '';
+-const board = site.resources.find((r) => r.label === 'Leaderboard');
++const board = site.resources.find((r) => r.id === 'leaderboard');
++// News inside the Live Leaderboard pill: the number of model results published on the latest
++// News date (public/leaderboard/data/news.json, copied in from the leaderboard repository).
++// No feed, no count; the pill then reads "Live Leaderboard" only.
++type NewsEntry = { id: string; status: string; kind?: string; date: string };
++// Matches nothing (empty object) when the leaderboard has not been copied in yet.
++const feeds = import.meta.glob<{ entries: NewsEntry[] }>('../../public/leaderboard/data/news.json', { eager: true, import: 'default' });
++const published = (Object.values(feeds)[0]?.entries ?? []).filter((e) => e.status === 'published' && e.kind === 'model_result');
++const latestDate = published.map((e) => e.date).sort().at(-1);
++const freshCount = published.filter((e) => e.date === latestDate).length;
  ---
  
  <a class="skip-link" href="#main">
-@@ -40,7 +52,7 @@
+@@ -19,8 +29,8 @@
+       Menu <span aria-hidden="true">+</span>
+     </button>
+     <nav id="main-nav" aria-label="Main navigation">
+-      {sections.map((label) => (
+-        <a href={`#${label.toLowerCase()}`} data-nav>
++      {sections.map(([label, id]) => (
++        <a href={`#${id}`} data-nav>
+           {label}
+         </a>
+       ))}
+@@ -40,7 +50,7 @@
            ),
          )}
          {board && (board.url ? (
 -          <a class="nav-board" href={board.url}><svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS[resourceIcon(board)]} /></svg>{board.label}</a>
-+          <a class="nav-board" href={asset(board.url)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS[resourceIcon(board)]} /></svg>{board.label}</a>
++          <a class="nav-board" href={asset(board.url)} aria-label={freshCount ? `${board.label}: ${freshCount} new results` : board.label}><svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS[resourceIcon(board)]} /></svg>{board.label}{freshCount > 0 && <span class="nav-board-news" aria-hidden="true"><i></i>{freshCount} new {freshCount === 1 ? 'result' : 'results'}</span>}</a>
          ) : (
            <span class="nav-board is-soon" aria-label={`${board.label}: coming soon`}>
              <svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS[resourceIcon(board)]} /></svg>
-@@ -48,6 +60,11 @@
-             <small>coming soon</small>
-           </span>
-         ))}
-+        {latestNews && board?.url && (
-+          <a class="nav-new" href={asset(`${board.url.replace(/\/$/, '')}/${latestNews.href}`)} aria-label={`New: ${newsLabel}`}>
-+            <span class="nav-new-tag">New</span>{newsLabel}
-+          </a>
-+        )}
-       </div>
-     </nav>
+--- a/src/components/Leaderboard.astro
++++ b/src/components/Leaderboard.astro
+@@ -11,14 +11,10 @@
+ import board from '../data/leaderboard.json';
+ import site from '../data/site.json';
+ import { asset } from '../lib/paths';
+-import { ICONS } from '../lib/icons';
+ import RankThreads from './RankThreads.astro';
+ 
+-// Submission entry: the same "One-click Eval" resource as the hero button (site.json, id
+-// "eval"); while its url is null the button shows as forthcoming.
+-const evalLink = (site.resources as { id?: string; label: string; url: string | null }[]).find(
+-  (r) => r.id === 'eval',
+-);
++// The live leaderboard (newer snapshot, separate site); this table stays as published.
++const liveBoard = (site.resources as { id?: string; url: string | null }[]).find((r) => r.id === 'leaderboard');
+ 
+ type Entry = { method: string; kind?: string; scores: Record<string, number | null | undefined> };
+ const columns = board.groups.flatMap((g) => g.columns);
+@@ -59,10 +55,11 @@
+ 
+ <section id="results" class="section" aria-labelledby="results-title">
+   <div class="section-heading" data-flow>
+-    <p class="eyebrow">03 / Benchmark Results</p>
++    <p class="eyebrow">03 / Results at Publication</p>
+     <h2 id="results-title" class="heading-single-line">
+       Who builds <em>working worlds?</em>
+     </h2>
++    <p class="section-lede lb-frozen">As published in the paper (Table 2). These scores are fixed at release; newer models appear on the live leaderboard.</p>
    </div>
+ 
+   <div class="board-wrap lb-board" data-board data-flow>
+@@ -160,7 +157,7 @@
+     {!ranked.length && <p class="board-status">{board.status}</p>}
+   </div>
+ 
+-  {(ranked.length > 0 || evalLink) && (
++  {(ranked.length > 0 || liveBoard?.url) && (
+     <div class="lb-actions" data-flow>
+       {ranked.length > 0 && (
+         <button
+@@ -173,22 +170,10 @@
+           Rank chart <span aria-hidden="true">+</span>
+         </button>
+       )}
+-      {evalLink && (
+-        <div class="lb-submit">
+-          <span class="eyebrow">Submit</span>
+-          {evalLink.url ? (
+-            <a class="lb-submit-button" href={asset(evalLink.url)}>
+-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS.eval} /></svg>
+-              {evalLink.label} <span aria-hidden="true">→</span>
+-            </a>
+-          ) : (
+-            <span class="lb-submit-button unavailable" aria-label={`${evalLink.label}: forthcoming`}>
+-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS.eval} /></svg>
+-              {evalLink.label}
+-              <span class="soon">Soon</span>
+-            </span>
+-          )}
+-        </div>
++      {liveBoard?.url && (
++        <a class="lb-live" href={asset(liveBoard.url)}>
++          Newer models are evaluated on the live leaderboard <span aria-hidden="true">→</span>
++        </a>
+       )}
+     </div>
+   )}
+--- a/src/components/LiveNews.astro
++++ b/src/components/LiveNews.astro
+@@ -0,0 +1,317 @@
++---
++// "Live leaderboard" notice (2026-10-18): after the hero, a card slides in at the top right with
++// the latest model results from the leaderboard's News feed, the models still in evaluation and a
++// link into Model News. After a few seconds it folds into a small "Live" pill that stays in the
++// corner. Data: public/leaderboard/data/{news,leaderboard}.json, copied in from the leaderboard
++// repository; without them nothing renders.
++import site from '../data/site.json';
++import { asset } from '../lib/paths';
++
++type Entry = { id: string; title: string; headline?: string; href?: string; detail?: string; status: string; kind?: string; date: string; model_id?: string; cover?: string };
++type Model = { id: string; name: string; metrics: Record<string, number> };
++type Board = { models: Model[]; pending_models?: { id: string; name: string }[] };
++const newsFeeds = import.meta.glob<{ entries: Entry[] }>('../../public/leaderboard/data/news.json', { eager: true, import: 'default' });
++const boardFeeds = import.meta.glob<Board>('../../public/leaderboard/data/leaderboard.json', { eager: true, import: 'default' });
++const news = Object.values(newsFeeds)[0];
++const boardData = Object.values(boardFeeds)[0];
++const board = site.resources.find((r) => r.id === 'leaderboard');
++const base = (board?.url ?? 'leaderboard/').replace(/\/$/, '');
++
++const published = (news?.entries ?? [])
++  .filter((e) => e.status === 'published' && e.kind === 'model_result')
++  .sort((a, b) => b.date.localeCompare(a.date) || (a.detail === 'report' ? -1 : b.detail === 'report' ? 1 : 0));
++const latestDate = published[0]?.date;
++const fresh = published.filter((e) => e.date === latestDate);
++const items = published.slice(0, 3).map((e) => {
++  const model = boardData?.models.find((m) => m.id === e.model_id);
++  return {
++    name: model?.name ?? e.title,
++    headline: e.headline ?? e.title,
++    score: model ? model.metrics.score.toFixed(2) : null,
++    href: asset(`${base}/`), // every item opens the leaderboard, whose Model News leads the page
++    cover: e.cover ? asset(`${base}/${e.cover}`) : null,
++  };
++});
++const pending = boardData?.pending_models ?? [];
++const day = (d?: string) => (d ? new Date(`${d}T00:00:00Z`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '');
++---
++
++{items.length > 0 && (
++  <aside class="live-news" data-live-news aria-label="Leaderboard updates">
++    <div class="ln-card" id="live-news-card" title="Drag to move">
++      <span class="ln-grip" aria-hidden="true"></span>
++      <div class="ln-head">
++        <span class="ln-live"><i aria-hidden="true"></i>Live leaderboard</span>
++        <span class="ln-date" title={`Updated ${day(latestDate)}`}>{day(latestDate)}</span>
++        <button class="ln-min" type="button" aria-label="Minimise updates" title="Minimise" data-ln-min>–</button>
++        <button class="ln-close" type="button" aria-label="Close updates" title="Close" data-ln-close>×</button>
++      </div>
++      <p class="ln-title">{fresh.length} new model {fresh.length === 1 ? 'result' : 'results'}</p>
++      <ol class="ln-list">
++        {items.map((it, i) => (
++          <li style={`--i:${i}`}>
++            <a class="ln-item" href={it.href}>
++              <span class="ln-thumb">{it.cover && <img src={it.cover} alt="" loading="lazy" decoding="async" />}</span>
++              <span class="ln-text">
++                <span class="ln-name">{it.name}{it.score && <em>{it.score}</em>}</span>
++                <span class="ln-headline">{it.headline}</span>
++              </span>
++            </a>
++          </li>
++        ))}
++      </ol>
++      {pending.length > 0 && (
++        <p class="ln-next"><span class="ln-next-label">In evaluation</span><span class="ln-next-names">{pending.map((m) => m.name).join(', ')}</span><span class="ln-bar" aria-hidden="true"><i></i></span></p>
++      )}
++      <a class="ln-cta" href={asset(`${base}/`)}>Open Model News <span aria-hidden="true">→</span></a>
++    </div>
++    <button class="ln-pill" type="button" aria-controls="live-news-card" aria-expanded="false" data-ln-pill>
++      <i aria-hidden="true"></i><span>Live · {fresh.length} new {fresh.length === 1 ? 'result' : 'results'}</span>
++    </button>
++    <button class="ln-pill-close" type="button" aria-label="Close updates" title="Close" data-ln-close>×</button>
++  </aside>
++)}
++
++<script>
++  // Appears when the paper title (#abstract .paper-title) comes into view, always as the full
++  // card; folds to the pill once the reader has scrolled on (see arm) or on "–"; the pill opens
++  // it again; "×" closes it for the visit (see close).
++  const root = document.querySelector<HTMLElement>('[data-live-news]');
++  // the paper title block ("Video2World" with the authors) at the start of the Abstract
++  const title = document.querySelector<HTMLElement>('#abstract .paper-title') || document.getElementById('abstract');
++  if (root) {
++    const KEY = 'v2w-live-news-min';
++    const store = { get: () => { try { return sessionStorage.getItem(KEY) === '1'; } catch { return false; } }, set: (v: boolean) => { try { sessionStorage.setItem(KEY, v ? '1' : '0'); } catch { /* storage unavailable */ } } };
++    const pill = root.querySelector<HTMLButtonElement>('[data-ln-pill]')!;
++    let timer = 0, shown = false;
++    const setPillW = () => root.style.setProperty('--pill-w', `${pill.offsetWidth}px`);
++    const fold = (remember = false) => { root.classList.add('is-min'); pill.setAttribute('aria-expanded', 'false'); setPillW(); if (remember) store.set(true); };
++    const open = () => { root.classList.remove('is-min'); pill.setAttribute('aria-expanded', 'true'); arm(); };
++    // fold rule: not a timer but reading progress. The card stays open until the reader has
++    // scrolled about 1.2 screens on from where it opened (and not while the pointer is on it).
++    let startY = window.scrollY;
++    const arm = () => { clearTimeout(timer); startY = window.scrollY; };
++    window.addEventListener('scroll', () => {
++      if (!shown || root.classList.contains('is-min') || root.classList.contains('is-closing')) return;
++      if (Math.abs(window.scrollY - startY) > window.innerHeight * 1.2 && !root.matches(':hover, :focus-within')) fold();
++    }, { passive: true });
++    const show = () => {
++      if (shown) return; shown = true;
++      root.classList.add('is-in');
++      pill.setAttribute('aria-expanded', 'true'); arm(); // always opens as the full card
++    };
++    root.querySelector('[data-ln-min]')?.addEventListener('click', () => fold(true));
++
++    // Close for the visit: the notice folds into a dot that flies to the navigation's Live Leaderboard pill
++    // (or the Menu button when the navigation is folded), which then pulses with a short note
++    // saying where new results live.
++    const OFF = 'v2w-live-news-off';
++    const off = () => { try { return sessionStorage.getItem(OFF) === '1'; } catch { return false; } };
++    if (off()) root.remove();
++    const header = document.querySelector<HTMLElement>('.site-header');
++    const navTarget = () => {
++      const menu = document.querySelector<HTMLElement>('.menu-toggle');
++      const news = document.querySelector<HTMLElement>('.nav-board');
++      return menu && getComputedStyle(menu).display !== 'none' ? menu : news;
++    };
++    const hint = (target: HTMLElement) => {
++      header?.classList.add('ln-pin');
++      target.classList.add('ln-landed');
++      const tip = document.createElement('div');
++      tip.className = 'ln-tip';
++      tip.setAttribute('role', 'status');
++      tip.innerHTML = '<span class="ln-tip-dot" aria-hidden="true"></span><span><b>New results land in the Live Leaderboard</b><small>Model News updates as new models are evaluated</small></span>';
++      document.body.append(tip);
++      const placeTip = () => { const r = target.getBoundingClientRect(); tip.style.top = `${r.bottom + 14}px`; tip.style.left = `${Math.min(window.innerWidth - tip.offsetWidth - 12, Math.max(12, r.left + r.width / 2 - tip.offsetWidth / 2))}px`; tip.style.setProperty('--ax', `${r.left + r.width / 2 - parseFloat(tip.style.left)}px`); };
++      requestAnimationFrame(() => { placeTip(); tip.classList.add('is-on'); });
++      const done = () => { tip.classList.remove('is-on'); target.classList.remove('ln-landed'); header?.classList.remove('ln-pin'); setTimeout(() => tip.remove(), 400); };
++      setTimeout(done, 4800);
++    };
++    const close = () => {
++      try { sessionStorage.setItem(OFF, '1'); } catch { /* storage unavailable */ }
++      clearTimeout(timer);
++      const from = (root.classList.contains('is-min') ? pill : root.querySelector('.ln-card'))!.getBoundingClientRect();
++      root.classList.add('is-closing');
++      header?.classList.add('ln-pin'); // bring the navigation back so the target is visible
++      const target = navTarget();
++      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
++      setTimeout(() => {
++        root.remove();
++        if (!target) return;
++        if (reduce) { hint(target); return; }
++        // the dot re-aims at the target every frame, since the navigation may still be sliding in
++        const dot = document.createElement('span');
++        dot.className = 'ln-fly';
++        document.body.append(dot);
++        const sx = from.left + from.width / 2, sy = from.top + from.height / 2, t0 = performance.now(), DUR = 760;
++        const ease = (k: number) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
++        const step = (now: number) => {
++          const k = Math.min(1, (now - t0) / DUR), e = ease(k), to = target.getBoundingClientRect();
++          const ex = to.left + to.width / 2, ey = to.top + to.height / 2;
++          const cx = (sx + ex) / 2 + (ex < sx ? -60 : 60), cy = Math.min(sy, ey) - 80; // raised control point: an arc
++          const x = (1 - e) * (1 - e) * sx + 2 * (1 - e) * e * cx + e * e * ex, y = (1 - e) * (1 - e) * sy + 2 * (1 - e) * e * cy + e * e * ey;
++          dot.style.transform = `translate(${x}px, ${y}px) scale(${2.4 - 1.8 * e})`;
++          if (k < 1) requestAnimationFrame(step); else { dot.remove(); hint(target); }
++        };
++        requestAnimationFrame(step);
++      }, reduce ? 0 : 280);
++    };
++    root.querySelectorAll('[data-ln-close]').forEach((b) => b.addEventListener('click', close));
++    pill.addEventListener('click', () => { store.set(false); open(); });
++    root.addEventListener('pointerenter', () => clearTimeout(timer));
++
++    if (title && 'IntersectionObserver' in window) {
++      const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { show(); io.disconnect(); } }, { rootMargin: '0px 0px -25% 0px' });
++      io.observe(title);
++    } else show();
++
++    // Drag: the card (outside its links and buttons) or the pill can be moved anywhere on screen;
++    // a short press on the pill still opens it. The position is kept for the visit.
++    const POS = 'v2w-live-news-pos';
++    const place = (x: number, y: number) => {
++      const box = (root.classList.contains('is-min') ? pill : root.querySelector('.ln-card'))!.getBoundingClientRect();
++      const w = Math.max(box.width, 120), h = Math.max(box.height, 40);
++      const nx = Math.min(Math.max(8, x), window.innerWidth - w - 8), ny = Math.min(Math.max(8, y), window.innerHeight - h - 8);
++      root.style.left = `${nx}px`; root.style.top = `${ny}px`; root.style.right = 'auto'; root.style.bottom = 'auto'; root.classList.add('is-placed');
++      return [nx, ny];
++    };
++    try { const p = JSON.parse(sessionStorage.getItem(POS) || 'null'); if (p) place(p[0], p[1]); } catch { /* no stored position */ }
++    let drag: { x: number; y: number; ox: number; oy: number; moved: boolean; onPill: boolean } | null = null;
++    root.addEventListener('pointerdown', (e) => {
++      const t = e.target as HTMLElement;
++      if (e.button !== 0 || t.closest('[data-ln-close]') || (t.closest('a, [data-ln-min]') && !t.closest('[data-ln-pill]'))) return;
++      const r = root.getBoundingClientRect();
++      const anchor = (root.classList.contains('is-min') ? pill : root.querySelector('.ln-card'))!.getBoundingClientRect();
++      drag = { x: e.clientX, y: e.clientY, ox: anchor.left, oy: anchor.top, moved: false, onPill: !!t.closest('[data-ln-pill]') };
++      void r;
++    });
++    window.addEventListener('pointermove', (e) => {
++      if (!drag) return;
++      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
++      if (!drag.moved && Math.hypot(dx, dy) < 5) return;
++      drag.moved = true; root.classList.add('is-dragging');
++      place(drag.ox + dx, drag.oy + dy);
++    });
++    const end = () => {
++      if (!drag) return;
++      if (drag.moved) {
++        const r = root.getBoundingClientRect();
++        try { sessionStorage.setItem(POS, JSON.stringify([r.left, r.top])); } catch { /* storage unavailable */ }
++        // swallow the click that ends a drag on the pill (only that one)
++        if (drag.onPill) {
++          const swallow = (c: Event) => { c.stopImmediatePropagation(); c.preventDefault(); };
++          pill.addEventListener('click', swallow, { capture: true, once: true });
++          setTimeout(() => pill.removeEventListener('click', swallow, { capture: true }), 250);
++        }
++      }
++      root.classList.remove('is-dragging'); drag = null;
++    };
++    window.addEventListener('pointerup', end);
++    window.addEventListener('pointercancel', end);
++    // keep it on screen when the window shrinks or the card unfolds near an edge
++    const keep = () => { if (root.classList.contains('is-placed')) { const r = root.getBoundingClientRect(); place(r.left, r.top); } };
++    window.addEventListener('resize', keep);
++    pill.addEventListener('click', () => requestAnimationFrame(keep));
++    root.querySelector('[data-ln-min]')?.addEventListener('click', () => requestAnimationFrame(keep));
++  }
++</script>
++
++<style>
++  .live-news { position: fixed; top: calc(var(--nav-height) + 14px); right: clamp(14px, 2.4vw, 32px); z-index: 900; width: min(360px, calc(100vw - 28px)); pointer-events: none; }
++  .ln-card, .ln-pill { pointer-events: auto; }
++  .ln-card { cursor: grab; touch-action: none; }
++  .ln-card a, .ln-card button { cursor: pointer; }
++  .ln-pill { touch-action: none; }
++  .live-news.is-dragging .ln-card, .live-news.is-dragging .ln-pill { cursor: grabbing; user-select: none; }
++  .live-news.is-dragging .ln-card { box-shadow: 0 36px 60px -24px rgba(35, 28, 23, 0.55), 0 2px 6px rgba(35, 28, 23, 0.1); }
++  .live-news.is-placed .ln-pill { left: 0; right: auto; transform-origin: top left; }
++  .ln-grip { position: absolute; top: 6px; left: 50%; width: 28px; height: 3px; margin-left: -14px; border-radius: 2px; background: var(--line); }
++  .ln-card {
++    position: relative; padding: 16px 18px 16px; border-radius: 16px; background: color-mix(in srgb, var(--surface) 94%, transparent); color: var(--text);
++    border: 1px solid var(--line); box-shadow: 0 24px 48px -24px rgba(35, 28, 23, 0.45), 0 2px 6px rgba(35, 28, 23, 0.08); backdrop-filter: blur(10px);
++    opacity: 0; transform: translateX(calc(100% + 40px)); visibility: hidden;
++    transition: transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s ease, visibility 0s 0.7s;
++  }
++  .live-news.is-in:not(.is-min) .ln-card { opacity: 1; transform: none; visibility: visible; transition: transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s ease, visibility 0s; }
++  .ln-head { display: flex; align-items: center; gap: 10px; }
++  .ln-live { white-space: nowrap; display: inline-flex; align-items: center; gap: 8px; font: var(--fw-label) var(--fs-label) / 1 var(--font-mono); letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--accent); }
++  .ln-live i, .ln-pill i { position: relative; width: 7px; height: 7px; border-radius: 50%; background: #d4614f; }
++  .ln-live i::after, .ln-pill i::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 1.5px solid #d4614f; opacity: 0; animation: ln-ping 1.8s ease-out infinite; }
++  @keyframes ln-ping { 0% { transform: scale(0.4); opacity: 0.9; } 100% { transform: scale(1.6); opacity: 0; } }
++  .ln-date { white-space: nowrap; margin-left: auto; font: var(--fw-label) var(--fs-label) / 1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
++  .ln-min { width: 24px; height: 24px; margin-right: -6px; border: 0; border-radius: 50%; background: transparent; color: var(--text-faint); font-size: 16px; line-height: 1; cursor: pointer; }
++  .ln-min:hover { background: var(--surface-soft); color: var(--text); }
++  .ln-title { margin: 10px 0 0; font: var(--fw-text) var(--fs-h3) / 1.2 var(--font-display); }
++  /* a small timeline: newest at the top, joined by a hairline */
++  .ln-list { position: relative; margin: 12px 0 0; padding: 0; list-style: none; }
++  .ln-list::before { content: ''; position: absolute; left: 4px; top: 12px; bottom: 12px; width: 1px; background: var(--line); }
++  .ln-list li { position: relative; padding-left: 20px; opacity: 0; transform: translateY(8px); }
++  .live-news.is-in:not(.is-min) .ln-list li { animation: ln-rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) calc(0.35s + var(--i) * 0.09s) both; }
++  @keyframes ln-rise { to { opacity: 1; transform: none; } }
++  .ln-list li::before { content: ''; position: absolute; left: 0; top: 50%; width: 9px; height: 9px; margin-top: -4.5px; border-radius: 50%; background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--accent); }
++  .ln-list li:first-child::before { background: var(--accent); }
++  .ln-list li:first-child::after { content: ''; position: absolute; left: -3px; top: 50%; width: 15px; height: 15px; margin-top: -7.5px; border-radius: 50%; border: 1px solid var(--accent); animation: ln-ping 2.4s ease-out infinite; }
++  .ln-item { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; gap: 12px; padding: 8px 8px; margin: 0 -8px; border-radius: 10px; color: var(--text); text-decoration: none; transition: background 0.2s; }
++  .ln-item:hover { background: color-mix(in srgb, var(--warm-tint) 30%, transparent); }
++  .ln-thumb { display: block; width: 48px; height: 36px; overflow: hidden; border-radius: 6px; background: var(--media-black, #0e0d0c); }
++  .ln-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.35s; }
++  .ln-item:hover .ln-thumb img { transform: scale(1.08); }
++  .ln-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
++  .ln-name { display: flex; justify-content: space-between; gap: 8px; font: var(--fw-label) var(--fs-label) / 1.3 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
++  .ln-name em { font-style: normal; color: var(--accent); }
++  .ln-headline { font: var(--fw-text) var(--fs-small) / 1.3 var(--font-display); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
++  .ln-next { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; align-items: center; margin: 12px 0 0; padding-top: 12px; border-top: 1px dashed var(--line); }
++  .ln-next-label { font: var(--fw-label) var(--fs-label) / 1 var(--font-mono); letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--text-faint); }
++  .ln-next-names { font-size: var(--fs-ui); color: var(--text-muted); text-align: right; }
++  .ln-bar { grid-column: 1 / -1; position: relative; height: 2px; overflow: hidden; border-radius: 2px; background: var(--line); }
++  .ln-bar i { position: absolute; top: 0; bottom: 0; width: 35%; background: var(--accent); animation: ln-scan 2.2s ease-in-out infinite; }
++  @keyframes ln-scan { from { left: -35%; } to { left: 100%; } }
++  .ln-cta { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; padding: 11px 16px; border-radius: 999px; background: var(--warm-solid, #5a4436); color: var(--on-ink, #f4f5f7); font: var(--fw-label) var(--fs-ui) / 1 var(--font-mono); letter-spacing: var(--ls-ui); text-transform: uppercase; text-decoration: none; transition: background 0.2s; }
++  .ln-cta:hover { background: var(--warm-solid-hover, #7a5c4a); color: var(--on-ink, #f4f5f7); }
++  .ln-cta span { transition: transform 0.25s; }
++  .ln-cta:hover span { transform: translateX(4px); }
++  .ln-close { width: 24px; height: 24px; margin-right: -6px; border: 0; border-radius: 50%; background: transparent; color: var(--text-faint); font-size: 18px; line-height: 1; cursor: pointer; }
++  .ln-close:hover { background: var(--text); color: var(--bg); }
++  .ln-min { margin-right: 0; }
++  /* closing: the card folds towards its corner before the dot flies off */
++  .live-news.is-closing .ln-card, .live-news.is-closing .ln-pill, .live-news.is-closing .ln-pill-close { transform: scale(0.2) !important; opacity: 0 !important; transition: transform 0.28s cubic-bezier(0.5, 0, 0.75, 0), opacity 0.28s ease !important; transform-origin: center; }
++  .ln-pill-close {
++    position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: 50%;
++    background: var(--surface); color: var(--text-faint); font-size: 13px; line-height: 1; cursor: pointer; pointer-events: auto; opacity: 0; visibility: hidden; transition: opacity 0.2s, background 0.2s, color 0.2s;
++  }
++  .live-news.is-in.is-min .ln-pill-close { visibility: visible; }
++  .live-news.is-in.is-min:hover .ln-pill-close, .live-news.is-in.is-min .ln-pill-close:focus-visible { opacity: 1; }
++  .ln-pill-close:hover { background: var(--text); color: var(--bg); }
++  .live-news.is-placed .ln-pill-close { right: auto; left: calc(var(--pill-w, 210px) - 14px); }
++  @media (hover: none) { .live-news.is-in.is-min .ln-pill-close { opacity: 1; } }
++  /* flying dot, landing pulse and the note (outside the component's markup: global) */
++  :global(.ln-fly) { position: fixed; left: 0; top: 0; z-index: 1001; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #d4614f; box-shadow: 0 0 0 4px rgba(212, 97, 79, 0.25), 0 6px 14px rgba(35, 28, 23, 0.3); pointer-events: none; }
++  :global(.site-header.ln-pin.is-hidden) { transform: none !important; opacity: 1 !important; visibility: visible !important; }
++  :global(.ln-landed) { position: relative; animation: ln-land 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 2; box-shadow: 0 0 0 0 rgba(212, 97, 79, 0.6); }
++  @keyframes ln-land { 0% { box-shadow: 0 0 0 0 rgba(212, 97, 79, 0.55); transform: scale(1); } 30% { transform: scale(1.08); } 100% { box-shadow: 0 0 0 14px rgba(212, 97, 79, 0); transform: scale(1); } }
++  :global(.ln-tip) {
++    position: fixed; z-index: 1001; display: flex; align-items: flex-start; gap: 10px; max-width: 290px; padding: 12px 14px; border-radius: 12px;
++    background: var(--text); color: var(--bg); box-shadow: 0 18px 36px -18px rgba(35, 28, 23, 0.6); opacity: 0; transform: translateY(-6px); transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); pointer-events: none;
++  }
++  :global(.ln-tip::before) { content: ''; position: absolute; top: -6px; left: calc(var(--ax, 50%) - 6px); width: 12px; height: 12px; background: var(--text); transform: rotate(45deg); border-radius: 2px; }
++  :global(.ln-tip.is-on) { opacity: 1; transform: none; }
++  :global(.ln-tip b) { display: block; font: var(--fw-text) var(--fs-small) / 1.3 var(--font-display); font-weight: 400; }
++  :global(.ln-tip small) { display: block; margin-top: 3px; font: var(--fw-label) var(--fs-label) / 1.4 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: rgba(241, 238, 229, 0.65); }
++  :global(.ln-tip-dot) { flex: none; width: 8px; height: 8px; margin-top: 5px; border-radius: 50%; background: #e0796a; }
++  @media (prefers-reduced-motion: reduce) { :global(.ln-landed) { animation: none; } :global(.ln-tip) { transition: none; } }
++  /* folded pill */
++  .ln-pill {
++    position: absolute; top: 0; right: 0; display: inline-flex; align-items: center; gap: 10px; padding: 10px 16px 10px 14px; border: 1px solid var(--line); border-radius: 999px;
++    background: color-mix(in srgb, var(--surface) 94%, transparent); color: var(--text); box-shadow: 0 12px 26px -16px rgba(35, 28, 23, 0.5); backdrop-filter: blur(10px);
++    font: var(--fw-label) var(--fs-ui) / 1 var(--font-mono); letter-spacing: var(--ls-ui); text-transform: uppercase; cursor: pointer;
++    opacity: 0; transform: scale(0.85); transform-origin: top right; visibility: hidden; transition: opacity 0.35s, transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s 0.35s;
++  }
++  .live-news.is-in.is-min .ln-pill { opacity: 1; transform: none; visibility: visible; transition: opacity 0.35s 0.25s, transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) 0.25s, visibility 0s; }
++  .ln-pill:hover { border-color: var(--accent); }
++  @media (max-width: 760px) { .live-news { top: auto; bottom: 14px; } .ln-pill { top: auto; bottom: 0; transform-origin: bottom right; } }
++  @media (prefers-reduced-motion: reduce) {
++    .ln-card, .ln-pill, .live-news.is-in:not(.is-min) .ln-card, .live-news.is-in.is-min .ln-pill { transition: none; }
++    .ln-list li, .live-news.is-in:not(.is-min) .ln-list li { animation: none; opacity: 1; transform: none; }
++    .ln-live i::after, .ln-pill i::after, .ln-list li:first-child::after, .ln-bar i { animation: none; }
++  }
++</style>
+--- a/src/pages/index.astro
++++ b/src/pages/index.astro
+@@ -10,6 +10,7 @@
+ import Footer from '../components/Footer.astro';
+ import CiteDialog from '../components/CiteDialog.astro';
+ import CiteThisWork from '../components/CiteThisWork.astro';
++import LiveNews from '../components/LiveNews.astro';
+ import site from '../data/site.json';
+ import { asset } from '../lib/paths';
+ import '../styles/tokens.css';
+@@ -82,6 +83,7 @@
+     </main>
+     <Footer />
+     <CiteDialog />
++    <LiveNews />
+     <script>
+       import { initScroll } from '../motion/scroll';
+       import { initReveal } from '../motion/reveal';
 --- a/src/styles/global.css
 +++ b/src/styles/global.css
-@@ -1207,3 +1207,29 @@
+@@ -1207,3 +1207,73 @@
      text-transform: uppercase;
    }
  }
@@ -86,3 +510,69 @@
 +  letter-spacing: var(--ls-label);
 +  text-transform: uppercase;
 +}
++
++/* Live Leaderboard pill with the latest News inside (Navbar.astro, 2026-10-18): a hairline, a
++   pulsing dot and the count of new results; the whole pill links to the leaderboard. */
++.nav-board-news {
++  display: inline-flex;
++  align-items: center;
++  gap: 7px;
++  margin-left: 4px;
++  padding-left: 10px;
++  border-left: 1px solid color-mix(in srgb, var(--warm-solid) 35%, transparent);
++  font: var(--fw-label) var(--fs-label) / var(--lh-label) var(--font-mono);
++  letter-spacing: var(--ls-label);
++  text-transform: uppercase;
++}
++.nav-board-news i {
++  position: relative;
++  width: 6px;
++  height: 6px;
++  border-radius: 50%;
++  background: #d4614f;
++}
++.nav-board-news i::after {
++  content: '';
++  position: absolute;
++  inset: -4px;
++  border-radius: 50%;
++  border: 1.5px solid #d4614f;
++  opacity: 0;
++  animation: nav-board-ping 1.8s ease-out infinite;
++}
++@keyframes nav-board-ping {
++  0% { transform: scale(0.4); opacity: 0.9; }
++  100% { transform: scale(1.6); opacity: 0; }
++}
++nav a.nav-board:hover {
++  background: var(--warm-solid);
++  color: var(--bg);
++}
++nav a.nav-board:hover .nav-board-news {
++  border-left-color: color-mix(in srgb, var(--bg) 40%, transparent);
++}
++@media (prefers-reduced-motion: reduce) {
++  .nav-board-news i::after { animation: none; }
++}
+--- a/src/styles/immersive.css
++++ b/src/styles/immersive.css
+@@ -1001,3 +1001,19 @@
+     max-height: none;
+   }
+ }
++
++/* 03 is the paper's table; the live leaderboard is linked beside the rank-chart toggle. */
++.lb-frozen { grid-column: 2 / -1; max-width: 46em; }
++.lb-live {
++  display: inline-flex;
++  align-items: center;
++  gap: 10px;
++  min-height: 44px;
++  padding: 9px 22px;
++  border: 1px solid var(--warm-solid);
++  border-radius: 999px;
++  color: var(--warm-solid);
++  font-size: var(--fs-ui);
++  letter-spacing: var(--ls-ui);
++}
++a.lb-live:hover { background: var(--warm-solid); color: var(--bg); }

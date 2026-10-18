@@ -204,6 +204,9 @@
   function citation(){return '@article{tang2026video2world,\n  title={Video2World: Benchmarking Coding Agents for Interactive World Modeling from Embodied Videos},\n  author={Tang, Jinzhou and Zhang, Zijun and Yang, Jing and others},\n  journal={arXiv preprint arXiv:2610.04432},\n  year={2026}\n}';}
   function commonEvents(){
     $('#cite-button')?.addEventListener('click',()=>copy(citation(),'Citation copied'));
+    $('.news-brief-close')?.addEventListener('click',closeBrief);
+    $('#news-brief')?.addEventListener('click',e=>{const d=$('#news-brief');if(e.target===d&&d.getBoundingClientRect){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closeBrief();}});
+    $('#news-brief')?.addEventListener('close',()=>{$$('#news-brief video').forEach(v=>v.pause());if((location.hash||'').startsWith('#news='))history.replaceState(null,'',`${location.pathname}${location.search}`);});
     $('.dialog-close')?.addEventListener('click',()=>{const d=$('#model-dialog');if(d.close)d.close();else d.removeAttribute('open');});
     $('#model-dialog')?.addEventListener('close',()=>{if(location.hash.startsWith('#model='))history.replaceState(null,'',`${location.pathname}${location.search}`);});
     $('#model-dialog')?.addEventListener('click',e=>{if(e.target===$('#model-dialog')){const r=e.target.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)e.target.close();}});
@@ -298,29 +301,101 @@
     $('#snapshot-date').textContent=lastUpdated();
     renderNews();renderCampaign();
   }
-  function renderNews(){
-    const published=state.news.entries.filter(n=>n.status==='published').sort((a,b)=>b.date.localeCompare(a.date));
-    const rowFor=entry=>state.board.models.find(m=>m.id===entry.model_id);
-    const latest=$('#latest-model-news');
-    if(latest){
-      const modelReports=published.filter(entry=>entry.kind==='model_result').slice(0,4);
-      latest.innerHTML=modelReports.map(entry=>{
-        const row=rowFor(entry),name=row?.name||entry.title;
-        const date=new Date(`${entry.date}T00:00:00Z`).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'});
-        const finding=row?`${format(row.metrics.score,'score')} V2WScore · ${format(row.metrics.success,'success',true)} task success · ${format(row.metrics.build,'build',true)} build rate`:entry.summary;
-        return `<a class="model-news-row" data-news-id="${esc(entry.id)}" data-model="${esc(entry.model_id)}" href="${path(entry.href)}" aria-label="Read ${esc(name)} evaluation report"><time class="model-news-date" datetime="${esc(entry.date)}"><span class="model-news-date-label">${esc(entry.date_label||'Published')}</span>${esc(date)}</time><span class="model-news-name">${esc(name)}</span><span class="model-news-finding">${esc(finding)}</span><span class="model-news-arrow" aria-hidden="true">↗</span></a>`;
-      }).join('');
-    }
-    const pending=$('#pending-model-news');
-    if(pending){
-      pending.hidden=!state.board.pending_models.length;
-      pending.innerHTML=state.board.pending_models.map(model=>`<span class="pending-model-item"><span class="pending-model-name">${esc(model.name)}</span><span class="pending-model-status">Coming soon</span></span>`).join('');
-    }
-    const grid=$('.updates-grid');
-    if(grid)grid.innerHTML=published.map(n=>`<a href="${path(n.href)}" class="update-card featured-update"><div class="update-top"><span class="release-tag">${n.kind==='roundup'?'JOINT ANALYSIS':'MODEL REPORT'}</span><span>${esc(n.date_label||'Published')} · ${esc(n.date)}</span></div><h3>${esc(n.title)}</h3><p>${esc(n.summary)}</p><div class="update-bottom"><span>Read the report</span><span>↗</span></div></a>`).join('')+state.board.pending_models.map(m=>`<a href="${path(`updates/${m.id}.html`)}" class="update-card upcoming-update"><div class="update-top"><span class="testing-tag"><span class="status-dot"></span>TESTING</span><span>${esc(m.provider)}</span></div><h3>${esc(m.name)}</h3><p>Results pending. The report will examine task completion, build reliability, physical fidelity and verified case evidence.</p><div class="update-bottom"><span>View testing status</span><span>↗</span></div></a>`).join('');
-    const summary=$('#nav-news-summary');
-    if(summary)summary.innerHTML=`<span class="news-nav-kicker">MODEL EVALUATION UPDATES</span>${published.slice(0,4).map(entry=>`<a class="news-nav-report" href="${path(entry.href)}">${esc(rowFor(entry)?.name||entry.title)} <span aria-hidden="true">↗</span></a>`).join('')}<a class="news-nav-all" href="${path('news/index.html')}">All news & model reports →</a>`;
+  // Model news (2026-10-18): each published model result is a news card with a headline, dek, real
+  // simulation cover and three numbers. "report" entries open their standalone page; "brief"
+  // entries open a dialog with story points, a comparison and the model's own cases.
+  const fmtDay=d=>new Date(`${d}T00:00:00Z`).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'});
+  function newsTarget(entry){return entry.detail==='brief'?`#news=${entry.id}`:path(entry.href);}
+  function newsRank(id){const order=[...state.board.models].sort((a,b)=>b.metrics.score-a.metrics.score);return [order.findIndex(m=>m.id===id)+1,order.length];}
+  function newsCard(entry){
+    const row=state.board.models.find(m=>m.id===entry.model_id),name=row?.name||entry.title,[rank,total]=row?newsRank(row.id):[0,0];
+    const brief=entry.detail==='brief';
+    const stats=row?`<span class="nc-stats"><span><b>${format(row.metrics.score,'score')}</b><small>V2WScore</small></span><span><b>${format(row.metrics.success,'success',true)}</b><small>Task success</small></span><span><b>${format(row.metrics.build,'build',true)}</b><small>Build rate</small></span></span>`:'';
+    return `<a class="news-card" href="${esc(newsTarget(entry))}" data-news-id="${esc(entry.id)}" data-model="${esc(entry.model_id||'')}" data-detail="${esc(entry.detail||'report')}"${brief?' aria-haspopup="dialog"':''}><span class="nc-cover">${entry.cover?`<img src="${esc(path(entry.cover))}" alt="${esc(entry.cover_alt||'')}" loading="lazy" decoding="async">`:''}${rank?`<span class="nc-rank">#${rank} <small>of ${total}</small></span>`:''}</span><span class="nc-body"><span class="nc-kicker"><span>Model news</span><time datetime="${esc(entry.date)}">${esc(fmtDay(entry.date))}</time></span><span class="nc-model">${esc(name)}</span><strong class="nc-headline">${esc(entry.headline||entry.title)}</strong><span class="nc-dek">${esc(entry.dek||entry.summary)}</span>${stats}<span class="nc-cta">${brief?'Open the brief <i aria-hidden="true">+</i>':'Read the full report <i aria-hidden="true">↗</i>'}</span></span></a>`;
   }
+  function pendingCard(m){
+    return `<div class="news-card is-pending" data-pending="${esc(m.id)}"><span class="nc-cover"><span class="nc-pending-mark">${esc(m.provider||'')}</span></span><span class="nc-body"><span class="nc-kicker"><span>In evaluation</span><span>Coming soon</span></span><span class="nc-model">${esc(m.name)}</span><strong class="nc-headline">Results are being verified</strong><span class="nc-dek">The news will follow once the evaluation is complete on the same 222-instance protocol.</span></span></div>`;
+  }
+  function bindNewsCards(root){
+    root.querySelectorAll('[data-detail="brief"][data-news-id]').forEach(c=>{if(c.dataset.bound)return;c.dataset.bound='1';c.addEventListener('click',e=>{e?.preventDefault?.();openBrief(c.dataset.newsId);});});
+  }
+  function renderNews(){
+    const published=state.news.entries.filter(n=>n.status==='published').sort((a,b)=>b.date.localeCompare(a.date)||((a.detail==='report')?-1:(b.detail==='report')?1:0));
+    const models=published.filter(e=>e.kind==='model_result');
+    const pending=state.board.pending_models||[];
+    const html=models.map(newsCard).join('')+pending.map(pendingCard).join('');
+    const home=$('#latest-model-news');
+    if(home){home.innerHTML=newsFront(models,pending);bindNewsCards(home);initNewsFront(home);}
+    const feed=$('#news-feed');
+    if(feed){feed.innerHTML=html;bindNewsCards(feed);}
+    const summary=$('#nav-news-summary');
+    if(summary)summary.innerHTML=`<span class="news-nav-kicker">MODEL EVALUATION UPDATES</span>${models.slice(0,4).map(entry=>`<a class="news-nav-report" href="${esc(entry.detail==='brief'?path(`news/index.html#news=${entry.id}`):path(entry.href))}">${esc(state.board.models.find(m=>m.id===entry.model_id)?.name||entry.title)} <span aria-hidden="true">↗</span></a>`).join('')}<a class="news-nav-all" href="${path('news/index.html')}">All news & model reports →</a>`;
+    if((location.hash||'').startsWith('#news='))openBrief(decodeURIComponent(location.hash.slice(6)));
+  }
+  // Home "Model News" front page (2026-10-18): a ticker of one-line headlines, a rotating lead
+  // story and a list of all stories. The lead rotates on its own (crossfade, slow zoom, a timer bar
+  // on the matching list row); hovering a row shows that story, clicking opens it; it pauses while
+  // the pointer or focus is inside, a brief is open, the tab is hidden or the section is off screen.
+  function newsFront(models,pending){
+    const rowOf=e=>state.board.models.find(m=>m.id===e.model_id);
+    const tick=[...models.map(e=>{const r=rowOf(e);return `<span class="nh-tick"><b>${esc(e.headline||e.title)}</b>${r?` <em>${format(r.metrics.score,'score')} V2WScore · ${format(r.metrics.success,'success',true)} task success</em>`:''}</span>`;}),...pending.map(m=>`<span class="nh-tick"><b>${esc(m.name)}</b> In evaluation <em>Coming soon</em></span>`)].join('<i class="nh-dot" aria-hidden="true">◆</i>');
+    const lead=(e,i)=>{const r=rowOf(e),[rank,total]=r?newsRank(r.id):[0,0],brief=e.detail==='brief';return `<a class="nh-lead${i===0?' is-active':''}" href="${esc(newsTarget(e))}" data-news-id="${esc(e.id)}" data-detail="${esc(e.detail||'report')}" data-lead="${i}"${i?' tabindex="-1" aria-hidden="true"':''}><span class="nh-lead-media">${e.cover?`<img src="${esc(path(e.cover))}" alt="${esc(e.cover_alt||'')}" ${i?'loading="lazy"':''} decoding="async">`:''}${e.cover_video?`<video class="nh-lead-video" src="${esc(path(e.cover_video))}" data-start="${Number(e.cover_start)||0}" style="object-position:${esc(e.cover_position||'50% 50%')}" muted playsinline preload="${i?'none':'auto'}" aria-hidden="true"></video>`:''}${rank?`<span class="nc-rank">#${rank} <small>of ${total}</small></span>`:''}</span><span class="nh-lead-body"><span class="nc-kicker"><span>${esc(r?.name||'')}</span><time datetime="${esc(e.date)}">${esc(fmtDay(e.date))}</time></span><strong class="nh-lead-title">${esc(e.headline||e.title)}</strong><span class="nh-lead-dek">${esc(e.dek||e.summary)}</span>${r?`<span class="nh-lead-foot"><span class="nc-stats"><span><b>${format(r.metrics.score,'score')}</b><small>V2WScore</small></span><span><b>${format(r.metrics.success,'success',true)}</b><small>Task success</small></span><span><b>${format(r.metrics.build,'build',true)}</b><small>Build rate</small></span></span>`:'<span class="nh-lead-foot">'}<span class="nc-cta">${brief?'Open the brief <i aria-hidden="true">+</i>':'Read the full report <i aria-hidden="true">↗</i>'}</span></span></span></a>`;};
+    const item=(e,i)=>{const r=rowOf(e);return `<li><a class="nh-item${i===0?' is-active':''}" href="${esc(newsTarget(e))}" data-news-id="${esc(e.id)}" data-detail="${esc(e.detail||'report')}" data-item="${i}"><span class="nh-thumb">${e.cover?`<img src="${esc(path(e.cover))}" alt="" loading="lazy" decoding="async">`:''}</span><span class="nh-item-text"><span class="nh-item-kicker">${esc(r?.name||'')} · ${esc(fmtDay(e.date))}</span><strong>${esc(e.headline||e.title)}</strong>${r?`<span class="nh-item-meta">${format(r.metrics.score,'score')} V2WScore · #${newsRank(r.id)[0]}</span>`:''}</span><span class="nh-item-cta" aria-hidden="true">${e.detail==='brief'?'Brief <i>+</i>':'Report <i>↗</i>'}</span><span class="nh-timer" aria-hidden="true"><i></i></span></a></li>`;};
+    const pend=m=>`<li><div class="nh-item is-pending" data-pending="${esc(m.id)}"><span class="nh-thumb"><span>${esc(m.provider||'')}</span></span><span class="nh-item-text"><span class="nh-item-kicker">${esc(m.name)} · Coming soon</span><strong>Results are being verified</strong><span class="nh-item-meta">In evaluation</span></span></div></li>`;
+    return `<div class="nh-ticker" aria-label="Latest headlines"><span class="nh-ticker-tag">Latest</span><div class="nh-ticker-track"><div class="nh-ticker-move"><span class="nh-ticker-set">${tick}<i class="nh-dot" aria-hidden="true">◆</i></span><span class="nh-ticker-set" aria-hidden="true">${tick}<i class="nh-dot" aria-hidden="true">◆</i></span></div></div></div><div class="nh-grid"><div class="nh-leads">${models.map(lead).join('')}</div><ol class="nh-list">${models.map(item).join('')}${pending.map(pend).join('')}</ol></div>`;
+  }
+  function initNewsFront(root){
+    if(!globalThis.requestAnimationFrame||!root.getBoundingClientRect||root.dataset.front)return;
+    root.dataset.front='1';
+    const leads=[...root.querySelectorAll('.nh-lead')],items=[...root.querySelectorAll('a.nh-item')];if(leads.length<2)return;
+    const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches,DWELL=4500;
+    let cur=0,elapsed=0,last=0,inside=false,visible=true;
+    // switch: the outgoing lead stays underneath ("is-leaving") while the incoming one wipes in from
+    // the side it comes from (data-dir) and its text rises in, staggered
+    let leaveTimer=0;
+    const show=(i,dir)=>{const prev=cur;cur=(i+leads.length)%leads.length;if(cur===prev)return;elapsed=0;
+      root.dataset.dir=dir||(cur>prev||(prev===leads.length-1&&cur===0)?'next':'prev');
+      clearTimeout(leaveTimer);leads.forEach(l=>l.classList.remove('is-leaving'));leads[prev].classList.add('is-leaving');leaveTimer=setTimeout(()=>leads[prev].classList.remove('is-leaving'),1100);
+      leads.forEach((l,k)=>{const on=k===cur;l.classList.toggle('is-active',on);if(on){l.removeAttribute('tabindex');l.removeAttribute('aria-hidden');}else{l.setAttribute('tabindex','-1');l.setAttribute('aria-hidden','true');}});
+      items.forEach((it,k)=>{it.classList.toggle('is-active',k===cur);it.style.setProperty('--t','0');});videos.forEach((v,k)=>{if(v&&k!==cur){v.dataset.for='';}});playActive();};
+    const paused=()=>reduce||inside||!visible||document.hidden||$('#news-brief')?.open;
+    // lead video: the active story's simulation plays from its key moment, muted, and loops there
+    const videos=leads.map(l=>l.querySelector('video'));
+    videos.forEach(v=>{if(!v)return;v.addEventListener('playing',()=>v.closest('.nh-lead-media')?.classList.add('is-playing'));v.addEventListener('ended',()=>{v.currentTime=+v.dataset.start||0;v.play().catch(()=>{});});});
+    const playActive=()=>{videos.forEach((v,k)=>{if(!v)return;if(k===cur&&!reduce&&visible&&!document.hidden){if(v.preload==='none')v.preload='auto';if(v.paused){if(v.dataset.started!=='1'||v.dataset.for!==String(cur)){v.currentTime=+v.dataset.start||0;v.dataset.started='1';v.dataset.for=String(cur);}v.play().catch(()=>{});}}else if(!v.paused){v.pause();}});};
+    document.addEventListener('visibilitychange',playActive);
+    const loop=t=>{const dt=Math.min(100,t-last||0);last=t;if(!paused()){elapsed+=dt;items[cur]?.style.setProperty('--t',(elapsed/DWELL).toFixed(4));if(elapsed>=DWELL)show(cur+1,'next');}root.classList.toggle('is-paused',paused());requestAnimationFrame(loop);};
+    requestAnimationFrame(loop);
+    root.addEventListener('pointerenter',()=>{inside=true;});root.addEventListener('pointerleave',()=>{inside=false;});
+    root.addEventListener('focusin',()=>{inside=true;});root.addEventListener('focusout',()=>{inside=false;});
+    if('IntersectionObserver' in globalThis)new IntersectionObserver(es=>{visible=es[0].isIntersecting;playActive();}).observe(root);else playActive();
+    items.forEach((it,k)=>{it.addEventListener('pointerenter',()=>{if(k!==cur)show(k);});it.addEventListener('focus',()=>{if(k!==cur)show(k);});});
+  }
+  // Brief dialog for a news entry without a standalone page.
+  async function openBrief(id){
+    const entry=state.news.entries.find(e=>e.id===id&&e.detail==='brief'),dialog=$('#news-brief');if(!entry||!dialog)return;
+    const row=state.board.models.find(m=>m.id===entry.model_id);if(!row)return;
+    const [rank,total]=newsRank(row.id),M=k=>metric(k),byId=i=>state.board.models.find(m=>m.id===i);
+    const val=(r,k)=>{const m=M(k);const u=['%','0–1','0–100'].includes(m.unit)?(m.unit==='%'?'%':''):` ${m.unit}`;return `${format(r.metrics[k],k)}${u}`;};
+    const cmp=entry.compare,before=cmp&&byId(cmp.before),ref=cmp&&byId(cmp.reference);
+    const better=(k,a,b)=>{const m=M(k);return m.direction==='up'?a>b:a<b;};
+    const table=cmp&&before?`<div class="nb-block"><h3>${esc(cmp.title)}</h3><table class="nb-compare"><thead><tr><th scope="col">Metric</th><th scope="col">${esc(before.name)}</th><th scope="col">${esc(row.name)}</th>${ref?`<th scope="col">${esc(ref.name)} <small>leader</small></th>`:''}</tr></thead><tbody>${cmp.metrics.map(k=>`<tr><td>${esc(M(k).short||M(k).label)} <span aria-hidden="true">${M(k).direction==='up'?'↑':'↓'}</span></td><td>${val(before,k)}</td><td class="${cmp.mode==='peer'||row.metrics[k]===before.metrics[k]?'':better(k,row.metrics[k],before.metrics[k])?'is-up':'is-down'}"><b>${val(row,k)}</b></td>${ref?`<td>${val(ref,k)}</td>`:''}</tr>`).join('')}</tbody></table></div>`:'';
+    const funnel=entry.funnel?(()=>{const lead=byId(entry.funnel.reference);const steps=[['build','World builds',v=>v],['progress','Stage progress',v=>v*100],['success','Task success',v=>v]];return `<div class="nb-block"><h3>${esc(entry.funnel.title)}</h3><div class="nb-funnel">${steps.map(([k,l,f])=>`<div class="nb-step"><span class="nb-step-label">${l}</span><span class="nb-step-bars"><i class="is-a" style="width:${Math.max(1,f(row.metrics[k])).toFixed(1)}%"></i>${lead?`<i class="is-b" style="width:${Math.max(1,f(lead.metrics[k])).toFixed(1)}%"></i>`:''}</span><span class="nb-step-val"><b>${val(row,k)}</b>${lead?`<small>${esc(lead.name.replace(/^Claude /,''))} ${val(lead,k)}</small>`:''}</span></div>`).join('')}</div><div class="af2-legend"><span class="is-a">${esc(row.name)}</span>${lead?`<span class="is-b">${esc(lead.name)}</span>`:''}</div></div>`;})():'';
+    const points=(entry.points||[]).length?`<div class="nb-points">${entry.points.map(p=>`<div class="nb-point"><span>${esc(p.label)}</span><p>${esc(p.text)}</p></div>`).join('')}</div>`:'';
+    $('#news-brief-content').innerHTML=`<header class="nb-head">${entry.cover?`<img class="nb-cover" src="${esc(path(entry.cover))}" alt="${esc(entry.cover_alt||'')}">`:''}<div><span class="nc-kicker"><span>Model news</span><time datetime="${esc(entry.date)}">${esc(fmtDay(entry.date))}</time></span><h2 id="news-brief-title">${esc(entry.headline)}</h2><p>${esc(entry.dek)}</p><div class="nb-stats"><span><b>#${rank}</b><small>of ${total} models</small></span><span><b>${format(row.metrics.score,'score')}</b><small>V2WScore</small></span><span><b>${format(row.metrics.success,'success',true)}</b><small>Task success</small></span><span><b>${format(row.metrics.build,'build',true)}</b><small>Build rate</small></span></div></div></header>${points}${funnel}${table}<div class="nb-block nb-cases" id="news-brief-cases"></div><footer class="nb-foot"><span>Snapshot as of ${esc(fmtDay(entry.date))} · 222 instances</span><a class="text-link" href="${esc(path('index.html#leaderboard'))}" data-brief-board>See the full ranking ↗</a></footer>`;
+    if(dialog.showModal&&!Object.hasOwn(dialog.attrs||{},'open')&&!dialog.open)dialog.showModal();else if(!dialog.showModal)dialog.setAttribute('open','');
+    if(history.replaceState&&location.hash!==`#news=${id}`)history.replaceState(null,'',`${location.pathname}${location.search}#news=${id}`);
+    $('[data-brief-board]')?.addEventListener('click',()=>{dialog.close?.();});
+    if(entry.cases){
+      const col=await fetchJSON(entry.cases);const list=[...(col.cases||[])].sort((a,b)=>(b.model?.success?1:0)-(a.model?.success?1:0));
+      const box=$('#news-brief-cases');if(!box||!list.length){if(box)box.hidden=true;return;}
+      box.innerHTML=`<h3>${esc(row.name)} in action</h3><p class="nb-note">Real rollouts on shared source videos; successes first. Formal task judgments.</p><div class="nb-tabs" role="tablist">${list.map((c,i)=>`<button type="button" role="tab" data-brief-case="${i}" aria-selected="false">${c.model?.success?'<i class="ok" aria-hidden="true">✓</i>':'<i class="no" aria-hidden="true">✕</i>'}${esc(c.title)}</button>`).join('')}</div><div class="nb-case" id="news-brief-case"></div>`;
+      const show=i=>{const c=list[i],m=c.model;box.querySelectorAll('[data-brief-case]').forEach(b=>{const on=+b.dataset.briefCase===i;b.classList.toggle('active',on);b.setAttribute('aria-selected',String(on));});box.querySelectorAll('video').forEach(v=>v.pause());
+        $('#news-brief-case').innerHTML=`<div class="nb-clip"><span class="nb-clip-top">Source video <em>${esc(c.dataset||'')}</em></span><video src="${esc(path(c.source.video))}" poster="${esc(path(c.source.poster))}" muted playsinline loop controls preload="metadata"></video></div><div class="nb-clip ${m.success?'is-win':'is-loss'}"><span class="nb-clip-top">${esc(row.name)} <em class="nb-verdict">${m.success?'✓ Task success':'✕ Task failed'}</em></span><video src="${esc(path(m.video))}" poster="${esc(path(m.poster))}" muted playsinline loop controls preload="metadata"></video></div>`;bindVideoFallbacks();};
+      box.querySelectorAll('[data-brief-case]').forEach(b=>b.addEventListener('click',()=>show(+b.dataset.briefCase)));show(0);
+    }
+  }
+  function closeBrief(){const d=$('#news-brief');if(!d)return;d.querySelectorAll('video').forEach(v=>v.pause());if(d.close)d.close();else d.removeAttribute('open');}
   function renderCampaign(){
     const campaign=state.news.campaign;
     const title=$('#campaign-title');if(!title)return;

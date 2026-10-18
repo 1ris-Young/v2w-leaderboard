@@ -74,64 +74,57 @@ async function load(file){
   assert.equal(doc.body.dataset.ready,'true',errors.join('\n'));
   return {doc,captured,errors,$:s=>doc.querySelector(s),$$:s=>doc.querySelectorAll(s)};
 }
-function checkNews(page,label){
-  const cards=page.$$('.updates-grid .update-card');
-  const target=c=>c.getAttribute('href')||c.getAttribute('data-report');
-  assert.equal(cards.length,publishedNews.length+board.pending_models.length,`${label}: published News and Testing reports`);
-  assert.equal(new Set(cards.map(target)).size,cards.length,`${label}: unique report links`);
-  assert.equal(page.$$('.updates-grid a.featured-update').length,publishedNews.length,`${label}: published report count`);
-  assert.equal(page.$$('.updates-grid .upcoming-update').length,board.pending_models.length,`${label}: Testing report count`);
-  assert.equal(page.$('#campaign-models'),null,`${label}: no duplicated model tiles`);
-  for(const entry of publishedNews){
-    const card=cards.find(c=>target(c).endsWith(entry.href));
-    assert.ok(card,`${label}: published report ${entry.id} is visible`);
-    assert.equal(card.tagName,'A',`${label}: published report ${entry.id} is clickable`);
-    assert.ok(card.classList.contains('featured-update'),`${label}: published report ${entry.id} state`);
+// Model news (2026-10-18): one card per published model result plus one per Testing model.
+// "report" cards link to their standalone page; "brief" cards open the brief dialog.
+const modelNews=publishedNews.filter(n=>n.kind==='model_result');
+async function checkNewsCards(page,containerSel,label,itemSel='.news-card'){
+  const cards=page.$$(`${containerSel} ${itemSel}`);
+  assert.equal(cards.length,modelNews.length+board.pending_models.length,`${label}: one card per model result and per Testing model`);
+  assert.equal(new Set(cards.map(c=>c.dataset.newsId||c.dataset.pending)).size,cards.length,`${label}: unique cards`);
+  for(const entry of modelNews){
+    const card=cards.find(c=>c.dataset.newsId===entry.id),model=board.models.find(m=>m.id===entry.model_id);
+    assert.ok(card,`${label}: ${entry.id} card`);
+    assert.equal(card.tagName,'A',`${label}: ${entry.id} card is clickable`);
+    assert.ok(card.textContent.includes(entry.headline||entry.title),`${label}: ${entry.id} headline`);
+    assert.ok(card.textContent.includes(metricText(model,'score')),`${label}: ${entry.id} V2WScore from leaderboard.json`);
+    if(entry.detail==='brief'){
+      assert.equal(card.getAttribute('href'),`#news=${entry.id}`,`${label}: ${entry.id} opens a brief`);
+      await card.click();
+      assert.ok(Object.hasOwn(page.$('#news-brief').attrs,'open'),`${label}: ${entry.id} brief opens`);
+      for(let i=0;i<10;i++)await new Promise(r=>setImmediate(r));
+      const brief=page.$('#news-brief-content');
+      assert.ok(brief.textContent.includes(entry.headline),`${label}: ${entry.id} brief headline`);
+      assert.equal(brief.querySelectorAll('.nb-point').length,(entry.points||[]).length,`${label}: ${entry.id} story points`);
+      if(entry.compare)assert.equal(brief.querySelectorAll('.nb-compare tbody tr').length,entry.compare.metrics.length,`${label}: ${entry.id} comparison rows`);
+      const col=JSON.parse(fs.readFileSync(path.join(dist,entry.cases),'utf8'));
+      assert.equal(brief.querySelectorAll('[data-brief-case]').length,col.cases.length,`${label}: ${entry.id} case choices`);
+      assert.equal(brief.querySelectorAll('#news-brief-case video').length,2,`${label}: ${entry.id} source and rollout`);
+      await page.$('.news-brief-close').click();
+      assert.ok(!Object.hasOwn(page.$('#news-brief').attrs,'open'),`${label}: ${entry.id} brief closes`);
+    }else assert.ok(card.getAttribute('href').endsWith(entry.href),`${label}: ${entry.id} links to its report`);
   }
+  for(const m of board.pending_models){
+    const card=cards.find(c=>c.dataset.pending===m.id);
+    assert.ok(card&&card.tagName!=='A',`${label}: ${m.id} Testing card is not a link`);
+    assert.match(card.textContent,/coming soon|being verified/i);
+    assert.doesNotMatch(card.textContent,/\d+(?:\.\d+)?\s*%/,`${label}: ${m.id} has no invented numbers`);
+  }
+}
+async function checkNews(page,label){
+  await checkNewsCards(page,'#news-feed',label);
   assert.equal(page.$('#campaign-status').textContent,`${campaignResults.length} of ${campaignIds.length} results available`);
   if(publishedRoundup){
     assert.equal(campaignResults.length,campaignIds.length,`${label}: no premature joint comparison`);
     assert.ok(page.$('#campaign-publication a').getAttribute('href').endsWith(publishedRoundup.href),`${label}: published joint analysis link`);
   }else assert.match(page.$('#campaign-publication').textContent,/preparation|preparing|pending|after|await/i);
-  for(const id of campaignIds){
-    const model=board.models.find(m=>m.id===id);
-    const reports=cards.filter(c=>target(c).endsWith(`updates/${id}.html`));
-    assert.equal(reports.length,1,`${label}: ${id} report link`);
-    assert.ok(reports[0].classList.contains(model?'featured-update':'upcoming-update'),`${label}: ${id} report state`);
-  }
-  for(const card of page.$$('.updates-grid .upcoming-update')){
-    assert.match(card.textContent,/testing/i);
-    assert.match(card.textContent,/pending|verification|verified|await/i);
-    assert.doesNotMatch(card.textContent,/\d+(?:\.\d+)?\s*%/);
-  }
 }
-function checkHomeNews(page){
-  const reports=publishedNews.filter(entry=>entry.kind==='model_result').sort((a,b)=>b.date.localeCompare(a.date)).slice(0,4);
-  const rows=page.$$('#latest-model-news a.model-news-row');
+async function checkHomeNews(page){
   assert.equal(page.$$('section')[0]?.attrs.id,'updates','Model News is the first homepage section');
   assert.ok(descendants(page.doc).indexOf(page.$('#updates'))<descendants(page.doc).indexOf(page.$('#leaderboard')),'Model News precedes the leaderboard');
-  assert.equal(rows.length,reports.length,'Homepage shows up to four recent model reports');
-  assert.deepEqual(rows.map(row=>row.dataset.newsId),reports.map(entry=>entry.id),'Homepage report rows follow the latest result dates');
   assert.ok(page.$('#updates').querySelectorAll('a').some(link=>link.getAttribute('href')?.endsWith('news/index.html')),'Homepage links to the complete News archive');
-  assert.equal(new Set(rows.map(row=>row.dataset.newsId)).size,rows.length,'Homepage report rows are unique');
-  for(const entry of reports){
-    const row=rows.find(item=>item.dataset.newsId===entry.id),model=board.models.find(m=>m.id===entry.model_id);
-    assert.ok(row,`${entry.id}: homepage report row exists`);
-    assert.equal(row.dataset.model,entry.model_id,`${entry.id}: row points to the measured model`);
-    assert.ok(row.getAttribute('href').endsWith(entry.href),`${entry.id}: row links to its independent report`);
-    assert.equal(row.querySelector('.model-news-name').textContent,model.name,`${entry.id}: report model name`);
-    assert.ok(row.querySelector('.model-news-finding').textContent.trim(),`${entry.id}: report finding is present`);
-    assert.ok(row.querySelector('.model-news-arrow'),`${entry.id}: report link affordance`);
-    const date=row.querySelector('time.model-news-date');
-    assert.equal(date?.getAttribute('datetime'),entry.date,`${entry.id}: report date follows News source data`);
-    if(/snapshot/i.test(entry.date_label||''))assert.doesNotMatch(date.textContent,/published|blog date/i,`${entry.id}: snapshot date is not presented as a blog publication date`);
-  }
-  const pending=page.$('#pending-model-news');
-  assert.ok(pending,'Unmeasured models have a separate homepage area');
-  assert.deepEqual(pending.querySelectorAll('.pending-model-name').map(el=>el.textContent).sort(),board.pending_models.map(m=>m.name).sort(),'Only unmeasured model names appear in the pending area');
-  assert.equal(pending.querySelectorAll('a').length,0,'Pending models are not presented as published report links');
-  if(board.pending_models.length)assert.match(pending.textContent,/coming soon/i);
-  assert.doesNotMatch(pending.textContent,/\d+(?:\.\d+)?\s*%|\d+(?:\.\d+)?\s*V2WScore/i,'Pending models have no invented scores');
+  await checkNewsCards(page,'#latest-model-news','Home','.nh-item');
+  assert.equal(page.$$('#latest-model-news .nh-lead').length,modelNews.length,'Home: one lead story per published model result');
+  assert.ok(page.$('#latest-model-news .nh-ticker').textContent.includes(modelNews[0].headline),'Home: ticker carries the headlines');
   for(const id of ['campaign-title','campaign-status','campaign-publication','release-title'])assert.equal(page.$('#'+id),null,`Homepage omits the old ${id} presentation`);
   assert.equal(page.$('.release-highlight'),null,'Homepage uses the compact introduction');
 }
@@ -141,7 +134,7 @@ function checkNoRemovedSections(page,label){
 }
 const home=await load('index.html');
 assert.equal(home.$$('#table-body tr').length,board.models.length);
-checkHomeNews(home);
+await checkHomeNews(home);
 checkNoRemovedSections(home,'Home');
 const metricViews=home.$$('[data-metric-view]');
 assert.deepEqual(metricViews.map(b=>b.dataset.metricView),['all','Geometry','Dynamics','Functionality','key'],'metric tabs follow the requested order');
@@ -320,7 +313,7 @@ if(opusCases.cases.length>1){
 }
 await update.$('#share-result').click();assert.equal(update.captured[0],'https://example.test/updates/opus-5-5.html');
 assert.equal(home.errors.length+update.errors.length,0);
-for(const id of campaignIds.filter(id=>id!=='opus-5-5')){
+for(const id of campaignIds.filter(id=>id!=='opus-5-5'&&fs.existsSync(path.join(dist,`updates/${id}.html`)))){
   const model=board.models.find(m=>m.id===id),pending=board.pending_models.find(m=>m.id===id);
   const page=await load(`updates/${id}.html`),name=(model||pending).name;
   checkNoRemovedSections(page,name);
@@ -362,5 +355,5 @@ for(const id of campaignIds.filter(id=>id!=='opus-5-5')){
   assert.equal(page.captured.length,0,`${pending.name}: no result shared while testing`);
   assert.equal(page.errors.length,0,`${pending.name}: no application error`);
 }
-const news=await load('news/index.html');checkNews(news,'News');checkNoRemovedSections(news,'News');assert.equal(news.errors.length,0);
+const news=await load('news/index.html');await checkNews(news,'News');checkNoRemovedSections(news,'News');assert.equal(news.errors.length,0);
 console.log(`PASS: ranking and source values, metric order and filtering, coverage dialogs, archive isolation, ${publishedNews.length} published News reports, campaign page states, ${frontierCases.cases.length} four-model source cases with truthful verdicts, playback/reset, model case switching and sharing. Browser layout QA was not performed.`);
