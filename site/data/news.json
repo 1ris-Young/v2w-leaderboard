@@ -18,7 +18,7 @@
       "cover_alt": "Claude Opus 5.5 simulation: the robot arm lifts the red block off the table (pick-and-place, verified case).",
       "detail": "report",
       "headline": "Claude Opus 5.5 takes the lead",
-      "dek": "33.6% task success, 11.3 points ahead of the next model, with the highest build rate in the snapshot.",
+      "dek": "33.6% task success, up from 12.9% for Claude Opus 5, with the highest build rate in the snapshot.",
       "cover_video": "assets/cases/opus55/01_droid_orange_pick_place/opus55_success_sim.mp4",
       "cover_start": 1.5,
       "cover_position": "50% 44%"
@@ -36,7 +36,7 @@
       "snapshot_id": "v2-published-2026-10-17",
       "detail": "brief",
       "headline": "GPT-6.1 Sol makes a generational leap",
-      "dek": "Six times the task success of GPT-5.6 Sol, with builds nearly as reliable as the leader.",
+      "dek": "Six times the task success of GPT-5.6 Sol, and 91.0% of its worlds now build.",
       "cover": "assets/cases/frontier/fbraw_2023-01-26-00_00_38_desk_leg2/gpt-6-1-sol-cover.webp",
       "cover_alt": "GPT-6.1 Sol simulation: the robot inserts the desk leg (verified task success).",
       "points": [
@@ -45,18 +45,21 @@
           "text": "V2WScore rises from 27.97 to 41.19 and task success from 1.8% to 10.9%. Stage progress climbs from 0.08 to 0.30."
         },
         {
-          "label": "Close to the leader on building",
-          "text": "91.0% of its worlds build, against 92.3% for Claude Opus 5.5. Object shape and size errors are on par with the leader."
+          "label": "More worlds build",
+          "text": "91.0% of its worlds now build, up from 86.8% for GPT-5.6 Sol and 87.2% for GPT-6 Astra."
         },
         {
-          "label": "The gap is in the last step",
-          "text": "Task success is about a third of Claude Opus 5.5's, and the final object position is further off: 38.8 cm terminal translation error against 29.0 cm."
+          "label": "Sharper reconstructions",
+          "text": "Scene error falls from 8.05 cm to 5.83 cm and object shape error from 1.63 cm to 0.92 cm across the line."
         }
       ],
       "compare": {
-        "title": "From GPT-5.6 Sol to GPT-6.1 Sol",
-        "before": "gpt-5-6-sol",
-        "reference": "opus-5-5",
+        "title": "Across the GPT line",
+        "models": [
+          "gpt-5-6-sol",
+          "gpt-6-astra",
+          "gpt-6-1-sol"
+        ],
         "metrics": [
           "score",
           "success",
@@ -84,40 +87,25 @@
       "snapshot_id": "v2-published-2026-10-17",
       "detail": "brief",
       "headline": "Meta Muse Wonder builds worlds that run",
-      "dek": "86.7% of its worlds execute, yet 2.8% complete the task. Its first Video2World result shows where the gap opens.",
+      "dek": "86.7% of its worlds run. Its first Video2World result maps the path from a running world to a completed task.",
       "cover": "assets/cases/frontier/droid_guptalab_2023_05_19_11h_15m_41s_orange_hand/meta-muse-cover.webp",
       "cover_alt": "Meta Muse Wonder simulation: the robot arm picks up the block (verified task success).",
       "points": [
         {
-          "label": "Builds on par with the field",
-          "text": "86.7% of its worlds build, inside the 80–92% range of all twelve evaluated models."
+          "label": "Worlds that run",
+          "text": "86.7% of its worlds build, matching the median of all twelve evaluated models."
         },
         {
-          "label": "Completion stays rare",
-          "text": "Task success is 2.8% and stage progress 0.08. It ranks ninth, tied with DeepSeek V4.1 Flash at 27.90 V2WScore."
+          "label": "A first baseline",
+          "text": "Task success is 2.8% and stage progress 0.08: the step from a running world to a completed task is where the next versions can grow."
         },
         {
-          "label": "Where the gap opens",
-          "text": "Scene error is 8.04 cm against 5.60 cm for the leader, and the final object position is 47.3 cm off against 29.0 cm."
+          "label": "Reconstruction",
+          "text": "Scenes are reconstructed within 8.04 cm on average (scene CD), and object shapes within 1.40 cm."
         }
       ],
       "funnel": {
-        "title": "From a running world to a finished task",
-        "reference": "opus-5-5"
-      },
-      "compare": {
-        "title": "Next to its peers",
-        "before": "deepseek-v4-1-flash",
-        "reference": "opus-5-5",
-        "metrics": [
-          "score",
-          "success",
-          "progress",
-          "build",
-          "scene_cd",
-          "terminal_trans"
-        ],
-        "mode": "peer"
+        "title": "From a running world to a finished task"
       },
       "cases": "data/meta-muse-cases.json",
       "cover_video": "assets/cases/frontier/droid_guptalab_2023_05_19_11h_15m_41s_orange_hand/meta-muse.mp4",

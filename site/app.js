@@ -69,6 +69,16 @@
     $('#provider-filters').innerHTML = providers.map(p => `<button type="button" data-provider="${esc(p)}" class="${p === state.provider ? 'active' : ''}" aria-pressed="${p === state.provider}">${esc(p)}</button>`).join('');
     $$('#provider-filters button').forEach(b => b.addEventListener('click', () => {state.provider = b.dataset.provider; renderProviders(); renderTable();}));
   }
+  // The leaderboard keeps the height of its full, unfiltered list: filtering or searching leaves
+  // empty room at the foot of the section instead of pulling the next section up.
+  let boardFullHeight=0;
+  function holdBoardHeight(){
+    const sec=$('#leaderboard');if(!sec||!sec.getBoundingClientRect)return;
+    const full=state.provider==='All'&&!state.search;
+    if(full){sec.style.minHeight='';boardFullHeight=sec.getBoundingClientRect().height;}
+    if(boardFullHeight)sec.style.minHeight=`${Math.ceil(boardFullHeight)}px`;
+  }
+  globalThis.addEventListener?.('resize',()=>{if(state.provider==='All'&&!state.search){holdBoardHeight();}else{boardFullHeight=0;const sec=$('#leaderboard');if(sec)sec.style.minHeight='';}});
   function renderTable() {
     const available = getMetrics();
     // Metric views: key metrics, one evaluation dimension (V2WScore stays first as the anchor), or all.
@@ -94,7 +104,7 @@
     }));
     $$('#table-body button[data-model]').forEach(b=>b.addEventListener('click',()=>openModel(b.dataset.model)));
     $('#board-summary').textContent = `${rows.filter(r=>!r.reference).length} configurations${state.snapshot==='paper'?' + reference':''}`;
-    renderChart();
+    renderChart();holdBoardHeight();
   }
   // Model logos for the podium (assets/logos, from @lobehub/icons-static-svg, MIT); the letter
   // mark stays as the fallback for providers without one.
@@ -108,11 +118,12 @@
     return marks[row.provider] || row.name.replace(/^(Claude |GPT-)/,'').slice(0,1);
   }
   function renderChart() {
-    const rows = filteredRows().sort((a,b)=>(a.reference?-1:b.reference?1:b.metrics[state.chart]-a.metrics[state.chart]));
+    // the ranking board always shows every model; provider and search filters apply to the table only
+    const rows = getRows().sort((a,b)=>(a.reference?-1:b.reference?1:b.metrics[state.chart]-a.metrics[state.chart]));
     const contenders = rows.filter(r=>!r.reference);
     const globalRanks = competitionRanks([...getRows()].filter(r=>!r.reference).sort((a,b)=>b.metrics[state.chart]-a.metrics[state.chart]), state.chart);
     const leader = contenders[0];
-    const isFiltered = state.provider!=='All' || state.search!=='';
+    const isFiltered = false;
     const colors = {Anthropic:'#dfb899',OpenAI:'#8acbb3',Google:'#95b8f5',Moonshot:'#c1a7ec',DeepSeek:'#93b6ec',Alibaba:'#edb478',Zhipu:'#b5abea'};
     $('#chart-title').textContent = labels[state.chart];
     if($('#ranking-context'))$('#ranking-context').textContent = `${isFiltered?'Filtered models':'All models'} · higher is better`;
@@ -264,7 +275,7 @@
     select(0);
   }
   async function initHome(){
-    renderProviders();renderTable();if($('#case-tabs'))renderCase();renderLatest();await initVerifiedCases();
+    renderProviders();renderTable();if($('#case-tabs'))renderCase();renderLatest();await initVerifiedCases();await renderProgress($('#progress-view'));
     $('#model-search').addEventListener('input',e=>{state.search=e.target.value;renderTable();});
     $('#snapshot-current')?.addEventListener('click',()=>setSnapshot('current'));$('#snapshot-paper')?.addEventListener('click',()=>setSnapshot('paper'));
     const viewNotes = {key:'',Geometry:'Does the initialized scene match the observed one? Scene, object shape and size.',Dynamics:'When it runs, does the object move as in the video? Terminal translation and rotation.',Functionality:'Does the task actually get done? Task success and stage progress.',all:'Every reported metric, including fixed-reference diagnostics and build rate.'};
@@ -300,6 +311,64 @@
     const count=$$('.benchmark-stats dt')[2];if(count)count.textContent=state.board.models.length;
     $('#snapshot-date').textContent=lastUpdated();
     renderNews();renderCampaign();
+  }
+  // ===== Score composition and model progress (2026-10-18) =====
+  // V2WScore = mean(F, G, D) x 100 (leaderboard.json score_components, 0-1 each).
+  const MIX=[['F','Functionality'],['G','Geometry'],['D','Dynamics']];
+  const mixOf=r=>r?.score_components||null;
+  // three thin bars for a ranking tile
+  function mixMini(r){const c=mixOf(r);if(!c)return '';return `<span class="tile-mix" aria-label="Functionality ${c.F.toFixed(2)}, geometry ${c.G.toFixed(2)}, dynamics ${c.D.toFixed(2)}">${MIX.map(([k])=>`<span><em>${k}</em><i><b style="width:${(c[k]*100).toFixed(1)}%"></b></i></span>`).join('')}</span>`;}
+  // grouped bars: one group per component, one bar per model; the first model is the subject
+  function mixCompare(rows){
+    rows=rows.filter(r=>mixOf(r));if(!rows.length)return '';
+    return `<div class="mix-legend">${rows.map((r,i)=>`<button type="button" class="mix-key" data-mix="${esc(r.id)}" style="--k:${i}"><i></i>${esc(r.name)}<small>${format(r.metrics.score,'score')}</small></button>`).join('')}</div><div class="mix-grid">${MIX.map(([k,l])=>`<div class="mix-group"><span class="mix-label">${l}</span>${rows.map((r,i)=>`<span class="mix-row" data-mix="${esc(r.id)}" style="--k:${i}"><i style="--w:${(mixOf(r)[k]*100).toFixed(1)}%"></i><b>${mixOf(r)[k].toFixed(2)}</b></span>`).join('')}</div>`).join('')}</div>`;
+  }
+  function bindMix(root){
+    if(!root?.querySelectorAll)return;
+    root.querySelectorAll('[data-mix]').forEach(el=>{const id=el.dataset.mix;const on=v=>root.querySelectorAll('[data-mix]').forEach(x=>x.classList.toggle('is-dim',v&&x.dataset.mix!==id));el.addEventListener('pointerenter',()=>on(true));el.addEventListener('pointerleave',()=>on(false));el.addEventListener('focus',()=>on(true));el.addEventListener('blur',()=>on(false));});
+    if('IntersectionObserver' in globalThis){const io=new IntersectionObserver(es=>{if(es[0].isIntersecting){root.classList.add('is-drawn');io.disconnect();}},{threshold:.25});io.observe(root);}else root.classList.add('is-drawn');
+  }
+  function renderScoreMix(root,ids){
+    if(!root)return;const rows=ids.map(id=>state.board.models.find(m=>m.id===id)).filter(Boolean);
+    root.innerHTML=mixCompare(rows);bindMix(root);
+  }
+  // Progress lanes: each model line on one track, nodes at their value, arrows between versions,
+  // all other models as faint context dots. A metric switch slides everything (CSS transitions).
+  const PG_METRICS=[{k:'score',l:'V2WScore'},{k:'success',l:'Task success'},{k:'F',l:'Functionality',c:1},{k:'G',l:'Geometry',c:1},{k:'D',l:'Dynamics',c:1}];
+  const pgVal=(r,m)=>m.c?mixOf(r)?.[m.k]:r.metrics[m.k];
+  const pgFmt=(v,m)=>v==null?'—':m.c?v.toFixed(2):m.k==='success'?`${v.toFixed(1)}%`:v.toFixed(2);
+  const shortName=n=>n.replace(/^Claude /,'');
+  async function renderProgress(root,opts={}){
+    if(!root)return;
+    const data=await fetchJSON('data/progress.json');
+    const byId=id=>state.board.models.find(m=>m.id===id);
+    const lines=data.lines.filter(l=>!opts.lines||opts.lines.includes(l.id)).map(l=>({...l,rows:l.models.map(byId).filter(Boolean)})).filter(l=>l.rows.length>1);
+    if(!lines.length){root.hidden=true;return;}
+    const lineIds=new Set(lines.flatMap(l=>l.models));
+    const others=state.board.models.filter(m=>!lineIds.has(m.id));
+    let metric=PG_METRICS[0],sel=lines[0].rows.at(-1).id;
+    const lane=l=>`<div class="pg-lane"><div class="pg-lane-label"><b>${esc(l.name)}</b><small>${l.rows.length} versions</small></div><div class="pg-track">${opts.compact?'':others.map(o=>`<span class="pg-ghost" data-pg="${esc(o.id)}" title="${esc(o.name)}"></span>`).join('')}${l.rows.slice(1).map((r,i)=>`<span class="pg-link" data-from="${esc(l.rows[i].id)}" data-to="${esc(r.id)}"><i></i><em></em></span>`).join('')}${l.rows.map((r,i)=>`<button type="button" class="pg-node ${i%2?'is-below':''}" data-pg="${esc(r.id)}" aria-label="${esc(r.name)}"><span class="pg-dot"></span><span class="pg-tag"><b><span class="pg-full">${esc(shortName(r.name))}</span><span class="pg-short">${esc(shortName(r.name).replace(/^GPT-/,''))}</span></b><em></em></span></button>`).join('')}</div></div>`;
+    root.innerHTML=`<div class="pg-bar" role="group" aria-label="Metric">${PG_METRICS.map((m,i)=>`<button type="button" class="${i?'':'active'}" data-pg-metric="${m.k}" aria-pressed="${!i}">${m.l}</button>`).join('')}</div><div class="pg-body"><div class="pg-lanes"><div class="pg-axis" aria-hidden="true"></div>${lines.map(lane).join('')}${opts.compact?'':'<p class="pg-foot"><span class="pg-ghost-key"></span>Other evaluated models · versions in release order; arrows show the change to the next version</p>'}</div><aside class="pg-detail" aria-live="polite"></aside></div>`;
+    const place=()=>{
+      const vals=state.board.models.map(r=>pgVal(r,metric)).filter(v=>v!=null);
+      const step=metric.c?0.2:metric.k==='success'?10:10,max=Math.ceil(Math.max(...vals)*1.12/step)*step;
+      const x=v=>`${(v/max*100).toFixed(2)}%`;
+      root.querySelector('.pg-axis').innerHTML=Array.from({length:Math.round(max/step)+1},(_,i)=>`<span style="left:${(i*step/max*100).toFixed(2)}%">${metric.c?(i*step).toFixed(1):i*step}${metric.k==='success'?'%':''}</span>`).join('');
+      root.querySelectorAll('[data-pg]').forEach(el=>{const v=pgVal(byId(el.dataset.pg),metric);el.style.left=v==null?'0%':x(v);const em=el.querySelector('.pg-tag em');if(em)em.textContent=pgFmt(v,metric);});
+      root.querySelectorAll('.pg-link').forEach(el=>{const a=pgVal(byId(el.dataset.from),metric),b=pgVal(byId(el.dataset.to),metric);const lo=Math.min(a,b),hi=Math.max(a,b);el.style.left=x(lo);el.style.width=`${((hi-lo)/max*100).toFixed(2)}%`;el.classList.toggle('is-back',b<a);el.classList.toggle('is-narrow',(hi-lo)/max<0.09);const d=b-a;el.querySelector('em').textContent=`${d>=0?'+':'−'}${pgFmt(Math.abs(d),metric).replace('%',metric.k==='success'?' pp':'')}`;});
+    };
+    const detail=()=>{
+      const r=byId(sel),line=lines.find(l=>l.rows.some(x=>x.id===sel)),i=line.rows.findIndex(x=>x.id===sel),prev=line.rows[i-1],ex=data.examples?.[sel],c=mixOf(r);
+      const rank=[...state.board.models].sort((a,b)=>b.metrics.score-a.metrics.score).findIndex(m=>m.id===sel)+1;
+      root.querySelectorAll('.pg-node').forEach(n=>n.classList.toggle('is-sel',n.dataset.pg===sel));
+      root.querySelector('.pg-detail').innerHTML=`<div class="pg-d-head"><span class="provider-mark">${modelLogo(r)}</span><div><small>${esc(r.provider)} · #${rank} of ${state.board.models.length}</small><b>${esc(r.name)}</b></div></div><div class="pg-d-score"><b>${format(r.metrics.score,'score')}</b><small>V2WScore</small>${prev?`<em class="${r.metrics.score>=prev.metrics.score?'up':'down'}">${r.metrics.score>=prev.metrics.score?'+':'−'}${Math.abs(r.metrics.score-prev.metrics.score).toFixed(2)} vs ${esc(shortName(prev.name))}</em>`:'<em>First version shown</em>'}</div>${c?`<div class="pg-d-mix">${MIX.map(([k,l])=>`<span><small>${l}</small><i><b style="width:${(c[k]*100).toFixed(1)}%"></b>${prev&&mixOf(prev)?`<u style="left:${(mixOf(prev)[k]*100).toFixed(1)}%" title="${esc(prev.name)}"></u>`:''}</i><em>${c[k].toFixed(2)}</em></span>`).join('')}${prev?`<p class="pg-d-note"><u></u>${esc(shortName(prev.name))}</p>`:''}</div>`:''}<div class="pg-d-stats"><span><b>${format(r.metrics.success,'success',true)}</b><small>Task success</small></span><span><b>${format(r.metrics.build,'build',true)}</b><small>Build rate</small></span></div>${ex?`<figure class="pg-d-media"><span><img src="${esc(path(ex.poster))}" alt="" loading="lazy">${ex.video?`<video src="${esc(path(ex.video))}" muted playsinline loop preload="none" aria-hidden="true"></video>`:''}</span><figcaption>Example success · ${esc(ex.task)}</figcaption></figure>`:'<p class="pg-d-none">No published example clip for this version.</p>'}${opts.compact?'':`<button type="button" class="text-link pg-d-open" data-model="${esc(sel)}">Full metric profile ↗</button>`}`;
+      const fig=root.querySelector('.pg-d-media');const v=fig?.querySelector('video');if(v){fig.addEventListener('pointerenter',()=>{v.play().catch(()=>{});fig.classList.add('is-playing');});fig.addEventListener('pointerleave',()=>{v.pause();fig.classList.remove('is-playing');});}
+      root.querySelector('.pg-d-open')?.addEventListener('click',()=>openModel(sel));
+    };
+    root.querySelectorAll('[data-pg-metric]').forEach(b=>b.addEventListener('click',()=>{metric=PG_METRICS.find(m=>m.k===b.dataset.pgMetric);root.querySelectorAll('[data-pg-metric]').forEach(x=>{x.classList.toggle('active',x===b);x.setAttribute('aria-pressed',String(x===b));});place();}));
+    root.querySelectorAll('.pg-node').forEach(n=>{const go=()=>{if(sel!==n.dataset.pg){sel=n.dataset.pg;detail();}};n.addEventListener('click',go);n.addEventListener('pointerenter',go);n.addEventListener('focus',go);});
+    place();detail();
+    if('IntersectionObserver' in globalThis){const io=new IntersectionObserver(es=>{if(es[0].isIntersecting){root.classList.add('is-drawn');io.disconnect();}},{threshold:.3});io.observe(root);}else root.classList.add('is-drawn');
   }
   // Model news (2026-10-18): each published model result is a news card with a headline, dek, real
   // simulation cover and three numbers. "report" entries open their standalone page; "brief"
@@ -377,12 +446,17 @@
     const row=state.board.models.find(m=>m.id===entry.model_id);if(!row)return;
     const [rank,total]=newsRank(row.id),M=k=>metric(k),byId=i=>state.board.models.find(m=>m.id===i);
     const val=(r,k)=>{const m=M(k);const u=['%','0–1','0–100'].includes(m.unit)?(m.unit==='%'?'%':''):` ${m.unit}`;return `${format(r.metrics[k],k)}${u}`;};
-    const cmp=entry.compare,before=cmp&&byId(cmp.before),ref=cmp&&byId(cmp.reference);
+    // comparisons stay inside the model's own line (its earlier versions); the funnel's reference
+    // is the median of all evaluated models, not another named model
+    const cmp=entry.compare,line=cmp?(cmp.models||[cmp.before,row.id]).map(byId).filter(Boolean):[];
     const better=(k,a,b)=>{const m=M(k);return m.direction==='up'?a>b:a<b;};
-    const table=cmp&&before?`<div class="nb-block"><h3>${esc(cmp.title)}</h3><table class="nb-compare"><thead><tr><th scope="col">Metric</th><th scope="col">${esc(before.name)}</th><th scope="col">${esc(row.name)}</th>${ref?`<th scope="col">${esc(ref.name)} <small>leader</small></th>`:''}</tr></thead><tbody>${cmp.metrics.map(k=>`<tr><td>${esc(M(k).short||M(k).label)} <span aria-hidden="true">${M(k).direction==='up'?'↑':'↓'}</span></td><td>${val(before,k)}</td><td class="${cmp.mode==='peer'||row.metrics[k]===before.metrics[k]?'':better(k,row.metrics[k],before.metrics[k])?'is-up':'is-down'}"><b>${val(row,k)}</b></td>${ref?`<td>${val(ref,k)}</td>`:''}</tr>`).join('')}</tbody></table></div>`:'';
-    const funnel=entry.funnel?(()=>{const lead=byId(entry.funnel.reference);const steps=[['build','World builds',v=>v],['progress','Stage progress',v=>v*100],['success','Task success',v=>v]];return `<div class="nb-block"><h3>${esc(entry.funnel.title)}</h3><div class="nb-funnel">${steps.map(([k,l,f])=>`<div class="nb-step"><span class="nb-step-label">${l}</span><span class="nb-step-bars"><i class="is-a" style="width:${Math.max(1,f(row.metrics[k])).toFixed(1)}%"></i>${lead?`<i class="is-b" style="width:${Math.max(1,f(lead.metrics[k])).toFixed(1)}%"></i>`:''}</span><span class="nb-step-val"><b>${val(row,k)}</b>${lead?`<small>${esc(lead.name.replace(/^Claude /,''))} ${val(lead,k)}</small>`:''}</span></div>`).join('')}</div><div class="af2-legend"><span class="is-a">${esc(row.name)}</span>${lead?`<span class="is-b">${esc(lead.name)}</span>`:''}</div></div>`;})():'';
+    const table=line.length>1?`<div class="nb-block"><h3>${esc(cmp.title)}</h3><table class="nb-compare"><thead><tr><th scope="col">Metric</th>${line.map(r=>`<th scope="col">${esc(r.name)}</th>`).join('')}</tr></thead><tbody>${cmp.metrics.map(k=>`<tr><td>${esc(M(k).short||M(k).label)} <span aria-hidden="true">${M(k).direction==='up'?'↑':'↓'}</span></td>${line.map((r,i)=>{if(r.id!==row.id)return `<td>${val(r,k)}</td>`;const p=line[i-1];return `<td class="${!p||r.metrics[k]===p.metrics[k]?'':better(k,r.metrics[k],p.metrics[k])?'is-up':'is-down'}"><b>${val(r,k)}</b></td>`;}).join('')}</tr>`).join('')}</tbody></table></div>`:'';
+    const median=k=>{const v=state.board.models.map(m=>m.metrics[k]).sort((a,b)=>a-b),n=v.length;return n%2?v[(n-1)/2]:(v[n/2-1]+v[n/2])/2;};
+    const funnel=entry.funnel?(()=>{const steps=[['build','World builds',v=>v],['progress','Stage progress',v=>v*100],['success','Task success',v=>v]];const ref={metrics:Object.fromEntries(steps.map(([k])=>[k,median(k)]))};return `<div class="nb-block"><h3>${esc(entry.funnel.title)}</h3><div class="nb-funnel">${steps.map(([k,l,f])=>`<div class="nb-step"><span class="nb-step-label">${l}</span><span class="nb-step-bars"><i class="is-a" style="width:${Math.max(1,f(row.metrics[k])).toFixed(1)}%"></i><i class="is-b" style="width:${Math.max(1,f(ref.metrics[k])).toFixed(1)}%"></i></span><span class="nb-step-val"><b>${val(row,k)}</b><small>median ${val(ref,k)}</small></span></div>`).join('')}</div><div class="af2-legend"><span class="is-a">${esc(row.name)}</span><span class="is-b">Median of all ${state.board.models.length} models</span></div></div>`;})():'';
     const points=(entry.points||[]).length?`<div class="nb-points">${entry.points.map(p=>`<div class="nb-point"><span>${esc(p.label)}</span><p>${esc(p.text)}</p></div>`).join('')}</div>`:'';
-    $('#news-brief-content').innerHTML=`<header class="nb-head">${entry.cover?`<img class="nb-cover" src="${esc(path(entry.cover))}" alt="${esc(entry.cover_alt||'')}">`:''}<div><span class="nc-kicker"><span>Model news</span><time datetime="${esc(entry.date)}">${esc(fmtDay(entry.date))}</time></span><h2 id="news-brief-title">${esc(entry.headline)}</h2><p>${esc(entry.dek)}</p><div class="nb-stats"><span><b>#${rank}</b><small>of ${total} models</small></span><span><b>${format(row.metrics.score,'score')}</b><small>V2WScore</small></span><span><b>${format(row.metrics.success,'success',true)}</b><small>Task success</small></span><span><b>${format(row.metrics.build,'build',true)}</b><small>Build rate</small></span></div></div></header>${points}${funnel}${table}<div class="nb-block nb-cases" id="news-brief-cases"></div><footer class="nb-foot"><span>Snapshot as of ${esc(fmtDay(entry.date))} · 222 instances</span><a class="text-link" href="${esc(path('index.html#leaderboard'))}" data-brief-board>See the full ranking ↗</a></footer>`;
+    const mixBlock=mixOf(row)?`<div class="nb-block nb-mix"><h3>Where the score comes from</h3>${mixCompare([row,...line.filter(r=>r.id!==row.id).reverse()])}</div>`:'';
+    $('#news-brief-content').innerHTML=`<header class="nb-head">${entry.cover?`<img class="nb-cover" src="${esc(path(entry.cover))}" alt="${esc(entry.cover_alt||'')}">`:''}<div><span class="nc-kicker"><span>Model news</span><time datetime="${esc(entry.date)}">${esc(fmtDay(entry.date))}</time></span><h2 id="news-brief-title">${esc(entry.headline)}</h2><p>${esc(entry.dek)}</p><div class="nb-stats"><span><b>#${rank}</b><small>of ${total} models</small></span><span><b>${format(row.metrics.score,'score')}</b><small>V2WScore</small></span><span><b>${format(row.metrics.success,'success',true)}</b><small>Task success</small></span><span><b>${format(row.metrics.build,'build',true)}</b><small>Build rate</small></span></div></div></header>${points}${mixBlock}${funnel}${table}<div class="nb-block nb-cases" id="news-brief-cases"></div><footer class="nb-foot"><span>Snapshot as of ${esc(fmtDay(entry.date))} · 222 instances</span><a class="text-link" href="${esc(path('index.html#leaderboard'))}" data-brief-board>See the full ranking ↗</a></footer>`;
+    bindMix($('#news-brief-content .nb-mix'));
     if(dialog.showModal&&!Object.hasOwn(dialog.attrs||{},'open')&&!dialog.open)dialog.showModal();else if(!dialog.showModal)dialog.setAttribute('open','');
     if(history.replaceState&&location.hash!==`#news=${id}`)history.replaceState(null,'',`${location.pathname}${location.search}#news=${id}`);
     $('[data-brief-board]')?.addEventListener('click',()=>{dialog.close?.();});
@@ -467,6 +541,7 @@
     $('#download-snapshot').addEventListener('click',()=>download(JSON.stringify(state.board,null,2),'video2world-v2-snapshot.json','application/json'));
     const collection=await fetchJSON('data/opus-5-5-cases.json');
     renderMetricCoverage(opus);
+    renderScoreMix($('#score-mix'),['opus-5-5','fable-5-1','opus-5']);
     renderModelAnalysis(opus.id,collection);
     if($('#model-cases-status'))$('#model-cases-status').hidden=collection.cases?.length>0;
     if(collection.cases?.length){

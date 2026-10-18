@@ -203,7 +203,7 @@ if(board.models.some(m=>m.provider==='Meta')){
 }
 await home.$('[data-provider="Anthropic"]').click();assert.equal(home.$$('#table-body tr').length,board.models.filter(m=>m.provider==='Anthropic').length);
 home.$('#model-search').value='Opus';await home.$('#model-search').emit('input');assert.equal(home.$$('#table-body tr').length,board.models.filter(m=>m.provider==='Anthropic'&&`${m.name} ${m.provider} ${m.model_id||''}`.toLowerCase().includes('opus')).length);
-home.$('#model-search').value='no-such-model';await home.$('#model-search').emit('input');assert.match(home.$('#table-body').innerHTML,/No models match/);if(home.$('#rank-chart'))assert.match(home.$('#rank-chart').innerHTML,/No models match/);assert.equal(home.$$('#rank-podium .podium-card').length,0);
+home.$('#model-search').value='no-such-model';await home.$('#model-search').emit('input');assert.match(home.$('#table-body').innerHTML,/No models match/);if(home.$('#rank-chart'))assert.match(home.$('#rank-chart').innerHTML,/No models match/);assert.equal(home.$$('#rank-podium .podium-card').length,board.models.length,'Ranking board ignores the table filters');
 home.$('#model-search').value='';await home.$('#model-search').emit('input');await home.$('[data-provider="All"]').click();
 await home.$('#detail-toggle').click();assert.equal(home.$$('#table-head th').length,board.metrics.length+2);assert.match(home.$('#table-head').innerHTML,/Fixed-ref/);
 await home.$('#table-body [data-model="opus-5-5"]').click();assert.ok(Object.hasOwn(home.$('#model-dialog').attrs,'open'));
