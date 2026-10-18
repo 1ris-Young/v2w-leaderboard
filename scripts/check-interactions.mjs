@@ -123,7 +123,9 @@ async function checkHomeNews(page){
   assert.ok(descendants(page.doc).indexOf(page.$('#updates'))<descendants(page.doc).indexOf(page.$('#leaderboard')),'Model News precedes the leaderboard');
   assert.ok(page.$('#updates').querySelectorAll('a').some(link=>link.getAttribute('href')?.endsWith('news/index.html')),'Homepage links to the complete News archive');
   await checkNewsCards(page,'#latest-model-news','Home','.nh-item');
-  assert.equal(page.$$('#latest-model-news .nh-lead').length,modelNews.length,'Home: one lead story per published model result');
+  assert.equal(page.$$('#latest-model-news a.nh-item .nh-model-logo img').length,modelNews.length,'Home: one logo card per published model result');
+  assert.equal(page.$$('#latest-model-news video').length,0,'Home News uses model logos without simulation videos');
+  assert.equal(page.$('#progress'),null,'Home omits the generation progress section');
   assert.ok(page.$('#latest-model-news .nh-ticker').textContent.includes(modelNews[0].headline),'Home: ticker carries the headlines');
   for(const id of ['campaign-title','campaign-status','campaign-publication','release-title'])assert.equal(page.$('#'+id),null,`Homepage omits the old ${id} presentation`);
   assert.equal(page.$('.release-highlight'),null,'Homepage uses the compact introduction');
