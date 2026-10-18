@@ -1,13 +1,13 @@
 # 新模型结果录入（Yangjing × 子骏）
 
-当前四个模型的页面已经存在；Gemini 4 Argon、Meta Muse、GPT-6.1 Sol 暂为 Testing，实际结果核验后会切换成模型报告。
+当前四个模型的页面已经存在；截至 2026-10-17，Opus 5.5、GPT-6.1 Sol 和 Meta Muse Wonder 已有本轮发布记录，只有 Gemini 4 Argon 保持 Testing。当前 222 实例 / 39 任务族快照、分项聚合及零分规则见 [本轮结果来源说明](RESULT_SNAPSHOT_2026-10-17.md)。
 
 ## 1. 填对应的 receipt
 
 | 模型 | receipt | 模型 ID |
 | --- | --- | --- |
 | Gemini 4 Argon | `examples/gemini-4-argon-receipt.json` | `gemini-4-argon` |
-| Meta Muse | `examples/meta-muse-receipt.json` | `meta-muse` |
+| Meta Muse Wonder | `examples/meta-muse-receipt.json` | `meta-muse` |
 | GPT-6.1 Sol | `examples/gpt-6-1-sol-receipt.json` | `gpt-6-1-sol` |
 
 填写实际结果日期、新闻标题和摘要、12 项 `model.metrics`、每列有效样本数 `model.coverage`，以及精确 API model ID、冻结 run、agent harness、effort、预算、evaluator 版本和 manifest hash；新增 `source` 记录正式导出的来源。模板中的空值不是 0 分。
@@ -23,7 +23,7 @@ python scripts/add-model.py --input examples/gemini-4-argon-receipt.json
 python scripts/generate-social-card.py --model gemini-4-argon
 ```
 
-导入器使用主站 `/Video2World/leaderboard/` 地址，自动更新榜单、对应模型页、News 和 Testing 状态；其他两模型替换 receipt 路径及模型 ID 即可。脚本只改本地文件，不会提交 Git、发推或部署主站。成绩图脚本需要 Pillow 和 DejaVu 字体（现有脚本使用 Linux DejaVu 字体路径）。
+导入器使用主站 `/Video2World/leaderboard/` 地址，自动更新榜单、对应模型页、News 和 Testing 状态。Gemini 完成后按上述流程导入；更正已存在的 GPT 或 Muse 结果时，需要使用经确认的 `--replace`，并同步核对快照来源和已有分析。脚本只改本地文件，不会提交 Git、发推或部署主站。成绩图脚本需要 Pillow 和 DejaVu 字体（现有脚本使用 Linux DejaVu 字体路径）。
 
 ## 3. 补模型优劣分析
 
@@ -43,6 +43,10 @@ python scripts/generate-social-card.py --model gemini-4-argon
 视频和封面放入 `site/assets/cases/模型ID/`；按 `examples/model-cases.example.json` 填写导入器创建的 `site/data/模型ID-cases.json`。保留源视频、该模型实际输出、正式 task success / progress、case ID、run 和 evaluator 来源；需要对照时再添加同输入的 baseline。
 
 `findings.case_ids` 要与案例文件中 `cases[].id` 一致，分析卡片就能跳转到对应案例。建议既有亮点也有失败，说明筛选条件；不要把五个定向挑选的成功案例当总体胜率，也不要用论文旧模型视频充当新模型输出。
+
+首页同输入四宫格另由 `site/data/frontier-cases.json` 驱动，对照 GPT-6.1 Sol、Claude Fable 5.1、Meta Muse Wonder 和 Claude Opus 5.5。Fable 使用现有五组真实输出和正式失败判定；五例最初按 Opus 成功 / Fable 失败筛选，不能推断总体胜率。Gemini 不占首页案例位置，但在 News 和四厂商 campaign 中仍保持 Testing / Coming soon。
+
+同一 case 的各模型输出需要相同源视频哈希和独立判定。只有实际 rollout 加明确布尔判定才显示 Success / Failed，待测、缺失素材和缺失判定必须分别保留状态。
 
 ## 5. 预览、检查、PR
 
