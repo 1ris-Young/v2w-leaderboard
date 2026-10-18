@@ -6,8 +6,9 @@ parser=argparse.ArgumentParser();parser.add_argument('--model',default='opus-5-5
 root=Path(__file__).resolve().parents[1];data=json.loads((root/'site/data/leaderboard.json').read_text());rows=data['models'];row=next(m for m in rows if m['id']==args.model)
 ids=args.baselines or (['opus-5','fable-5-1'] if args.model=='opus-5-5' else [m['id'] for m in sorted(rows,key=lambda m:m['metrics']['score'],reverse=True) if m['id']!=args.model][:2])
 baselines=[next(m for m in rows if m['id']==i) for i in ids][:2]
-fontdir=Path('/usr/share/fonts/truetype/dejavu')
-def font(n,b=False):return ImageFont.truetype(str(fontdir/('DejaVuSans-Bold.ttf' if b else 'DejaVuSans.ttf')),n)
+def font(n,b=False):
+ candidates=[Path('/usr/share/fonts/truetype/dejavu')/('DejaVuSans-Bold.ttf' if b else 'DejaVuSans.ttf'),Path('/System/Library/Fonts/Supplemental')/('Arial Bold.ttf' if b else 'Arial.ttf')]
+ return ImageFont.truetype(str(next(p for p in candidates if p.is_file())),n)
 im=Image.new('RGB',(1200,630),'#17121e');d=ImageDraw.Draw(im);ink='#eee1f7';purple='#d2acf2';muted='#bba1ca';green='#a1d8bd'
 d.rounded_rectangle((55,42,113,100),radius=13,fill='#382640');d.text((65,60),'V2W',font=font(15,True),fill='white');d.text((129,46),'Video2World',font=font(25,True),fill=ink);d.text((131,79),'Coding agents, physical worlds',font=font(13),fill=muted)
 leader=row['id']==max(rows,key=lambda m:m['metrics']['score'])['id'];badge='NEW BENCHMARK LEADER' if leader else 'MODEL UPDATE'
@@ -18,6 +19,9 @@ d.text((55,132),row['name'],font=font(size,True),fill=ink);d.text((58,202),'One 
 ratio=row['metrics']['success']/baselines[0]['metrics']['success'] if baselines and baselines[0]['metrics']['success']>0 else None
 third_value=f'{ratio:.2f}×' if ratio is not None else f"{row['metrics']['progress']:.2f}"
 third_label='vs. '+baselines[0]['name'].replace('Claude ','')+' task success' if ratio is not None else 'Stage progress'
+if row['id'] != 'opus-5-5':
+ third_value=f"{row['metrics']['build']:.1f}%"
+ third_label='Build rate'
 for x,val,label in [(55,f"{row['metrics']['score']:.2f}",'V2WScore / 100'),(431,f"{row['metrics']['success']:.1f}%",'Task success'),(817,third_value,third_label)]:
  d.text((x,276),val,font=font(70,True),fill=purple if x!=817 else green)
  label_size=17
