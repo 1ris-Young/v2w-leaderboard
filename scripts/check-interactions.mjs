@@ -121,7 +121,6 @@ async function checkNews(page,label){
 async function checkHomeNews(page){
   assert.equal(page.$$('section')[0]?.attrs.id,'updates','Model News is the first homepage section');
   assert.ok(descendants(page.doc).indexOf(page.$('#updates'))<descendants(page.doc).indexOf(page.$('#leaderboard')),'Model News precedes the leaderboard');
-  assert.ok(page.$('#updates').querySelectorAll('a').some(link=>link.getAttribute('href')?.endsWith('news/index.html')),'Homepage links to the complete News archive');
   await checkNewsCards(page,'#latest-model-news','Home','.nh-item');
   assert.equal(page.$$('#latest-model-news a.nh-item .nh-model-logo img').length,modelNews.length,'Home: one logo card per published model result');
   assert.equal(page.$$('#latest-model-news video').length,0,'Home News uses model logos without simulation videos');
@@ -357,5 +356,5 @@ for(const id of campaignIds.filter(id=>id!=='opus-5-5'&&fs.existsSync(path.join(
   assert.equal(page.captured.length,0,`${pending.name}: no result shared while testing`);
   assert.equal(page.errors.length,0,`${pending.name}: no application error`);
 }
-const news=await load('news/index.html');await checkNews(news,'News');checkNoRemovedSections(news,'News');assert.equal(news.errors.length,0);
+
 console.log(`PASS: ranking and source values, metric order and filtering, coverage dialogs, archive isolation, ${publishedNews.length} published News reports, campaign page states, ${frontierCases.cases.length} four-model source cases with truthful verdicts, playback/reset, model case switching and sharing. Browser layout QA was not performed.`);

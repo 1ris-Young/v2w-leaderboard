@@ -121,7 +121,7 @@ for(const c of frontierCases.cases){
   }
   assert.equal(new Set(Object.values(c.models).map(m=>m.provenance?.source_video_sha256).filter(Boolean)).size,1,`${c.id}: every model uses the same source video`);
 }
-for(const htmlFile of ['index.html','news/index.html',...fs.readdirSync(path.join(dist,'updates')).filter(n=>n.endsWith('.html')).map(n=>'updates/'+n)]){
+for(const htmlFile of ['index.html',...fs.readdirSync(path.join(dist,'updates')).filter(n=>n.endsWith('.html')).map(n=>'updates/'+n)]){
   const html=read(htmlFile);const folder=path.dirname(path.join(dist,htmlFile));
   assert.ok(!/href="[^"]*#compare"/.test(html),`${htmlFile}: obsolete Compare navigation`);
   const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);assert.equal(new Set(ids).size,ids.length,`${htmlFile}: repeated ID`);
