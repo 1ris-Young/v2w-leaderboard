@@ -44,7 +44,16 @@
         "description": "Formal evaluation: task failed.",
         "final": "terminal error 32.46 cm · scene CD 2.40 cm"
       },
-      "analysis": "Fable 5.1 has slightly lower scene CD (2.40 cm vs 2.86 cm), yet its formal task judgment is a failure; Opus 5.5 passes. Reported terminal errors are 32.46 cm and 2.44 cm respectively. Similar scene-level geometry scores can accompany different task outcomes; these metrics alone do not isolate the cause."
+      "analysis": "Fable 5.1 has slightly lower scene CD (2.40 cm vs 2.86 cm), yet its formal task judgment is a failure; Opus 5.5 passes. Reported terminal errors are 32.46 cm and 2.44 cm respectively. Similar scene-level geometry scores can accompany different task outcomes; these metrics alone do not isolate the cause.",
+      "highlights": [
+        {
+          "label": "Terminal error",
+          "unit": "cm",
+          "better": "lower",
+          "model": 2.44,
+          "baseline": 32.46
+        }
+      ]
     },
     {
       "id": "droid_guptalab_2023_05_19_11h_15m_41s_orange_hand",
@@ -80,7 +89,24 @@
         "description": "Formal evaluation: task failed.",
         "final": "terminal error 100.00 cm · scene CD 14.17 cm"
       },
-      "analysis": "Opus 5.5 passes the formal task evaluation, with scene CD 1.08 cm and reported terminal error 1.22 cm. Fable 5.1 fails, with scene CD 14.17 cm and reported terminal error 100.00 cm. The error is shown as reported by the evaluator; inspect the rollouts alongside the task judgments."
+      "analysis": "Opus 5.5 passes the formal task evaluation, with scene CD 1.08 cm and reported terminal error 1.22 cm. Fable 5.1 fails, with scene CD 14.17 cm and reported terminal error 100.00 cm. The error is shown as reported by the evaluator; inspect the rollouts alongside the task judgments.",
+      "highlights": [
+        {
+          "label": "Terminal error",
+          "unit": "cm",
+          "better": "lower",
+          "model": 1.22,
+          "baseline": 100.0,
+          "baseline_capped": true
+        },
+        {
+          "label": "Scene CD",
+          "unit": "cm",
+          "better": "lower",
+          "model": 1.08,
+          "baseline": 14.17
+        }
+      ]
     },
     {
       "id": "dexycb_s01_142517",
@@ -116,7 +142,21 @@
         "description": "Formal evaluation: task failed.",
         "final": "hidden replay failed · scene CD 11.39 cm"
       },
-      "analysis": "Opus 5.5's two-handed lift passes the hidden replay check; Fable 5.1's does not. Opus 5.5 also reconstructs the scene more closely (scene CD 3.62 cm vs 11.39 cm)."
+      "analysis": "Opus 5.5's two-handed lift passes the hidden replay check; Fable 5.1's does not. Opus 5.5 also reconstructs the scene more closely (scene CD 3.62 cm vs 11.39 cm).",
+      "highlights": [
+        {
+          "label": "Hidden replay",
+          "model": "Passed",
+          "baseline": "Failed"
+        },
+        {
+          "label": "Scene CD",
+          "unit": "cm",
+          "better": "lower",
+          "model": 3.62,
+          "baseline": 11.39
+        }
+      ]
     },
     {
       "id": "hot3d_002498",
@@ -152,7 +192,16 @@
         "description": "Formal evaluation: task failed.",
         "final": "terminal error 24.31 cm · scene CD 3.16 cm"
       },
-      "analysis": "Scene CD is 2.18 cm for Opus 5.5 and 3.16 cm for Fable 5.1. Opus 5.5 passes the formal task evaluation and Fable 5.1 fails, with reported terminal errors of 5.05 cm and 24.31 cm. The source video and both rollouts let you inspect the observed outcome."
+      "analysis": "Scene CD is 2.18 cm for Opus 5.5 and 3.16 cm for Fable 5.1. Opus 5.5 passes the formal task evaluation and Fable 5.1 fails, with reported terminal errors of 5.05 cm and 24.31 cm. The source video and both rollouts let you inspect the observed outcome.",
+      "highlights": [
+        {
+          "label": "Terminal error",
+          "unit": "cm",
+          "better": "lower",
+          "model": 5.05,
+          "baseline": 24.31
+        }
+      ]
     },
     {
       "id": "fbraw_2023-01-22-22_45_54_lamp_bulb",
@@ -188,7 +237,17 @@
         "description": "Formal evaluation: task failed.",
         "final": "terminal error 100.00 cm · scene CD 5.07 cm"
       },
-      "analysis": "Opus 5.5 passes the formal insertion-task evaluation, with reported terminal error 1.41 cm. Fable 5.1 fails, with reported terminal error 100.00 cm. Scene CD is 3.08 cm and 5.07 cm respectively. These are the evaluator's reported errors, rather than an independent measurement of distance in the videos."
+      "analysis": "Opus 5.5 passes the formal insertion-task evaluation, with reported terminal error 1.41 cm. Fable 5.1 fails, with reported terminal error 100.00 cm. Scene CD is 3.08 cm and 5.07 cm respectively. These are the evaluator's reported errors, rather than an independent measurement of distance in the videos.",
+      "highlights": [
+        {
+          "label": "Terminal error",
+          "unit": "cm",
+          "better": "lower",
+          "model": 1.41,
+          "baseline": 100.0,
+          "baseline_capped": true
+        }
+      ]
     }
   ],
   "analysis_status": "Evidence descriptions reviewed for metric and selection boundaries; visual case interpretation remains subject to research review.",

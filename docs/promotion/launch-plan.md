@@ -1,102 +1,103 @@
-这轮先用 Opus 5.5 的结果建立 Video2World 持续评测的传播节奏。主网站承接完整榜单和案例，每个新模型有独立结果页；宣传以明确增幅和可检查的执行证据为核心，争取模型团队的引用、转发和后续评测合作。
+# Video2World 持续评测与传播计划
 
-首版网站：https://video2world-observatory.zijnzhang.chatgpt.site
+更新日期：2026-10-17。网站以总体榜单、独立模型报告、成绩图和真实案例建立持续评测节奏，争取模型团队的引用、转发和后续合作；credits 指影响力。
 
-该版本供预览和整合进主站。正式推文中的链接应替换为主站公开结果页。
+正式目标地址为 [Video2World leaderboard](https://aetherlabsai.github.io/Video2World/leaderboard/)。本地改动和报告准备不表示已经部署或授权外发，发布前仍需确认实际公开页面和素材。
 
-# Opus 5.5 可引用结论
+## 四个入口的分工
 
-以下数值来自 2026 年 10 月 9 日提供的同一结果快照。
+| 入口 | 职责与接入状态 |
+| --- | --- |
+| 已上线 project page + arXiv | 研究的公共主入口；project page 的 leaderboard 入口目前预留，尚未接入本仓库页面。计划由主站右上浮动 News 入口引流到独立 News。 |
+| 公司 Blog / Jinzhou 文章 | 方法说明与技术报告，按作者和公司编辑流程独立推进；不以 Gemini 完成或结果达到四行为发表条件。本文不新增公司 Blog 地址，也不声称其已上线。 |
+| 独立 News | 每测一个模型建立一个模型页，集中展示新结果、指标解释和真实执行案例，并保留历次模型报告。 |
+| Leaderboard | 以总体排名和可点击指标为核心；顶部放紧凑的逐条 News feed，每条链接到对应模型页。完整新闻历史由独立 News 承担。 |
 
-| 模型 | V2WScore | Task Success | Stage Progress |
-| --- | ---: | ---: | ---: |
-| Claude Opus 5.5 | 52.41 | 29.4% | 0.57 |
-| Claude Fable 5.1 | 44.13 | 20.2% | 0.45 |
-| GPT-6 Astra | 38.27 | 6.5% | 0.29 |
-| Claude Opus 5 | 37.91 | 11.5% | 0.34 |
+公司技术 Blog 与四旗舰联合比较文章是两条工作流。后者可以等待四个兼容结果后再完成；结果行数不会自动决定任何文章的发表。
 
-主结论：Opus 5.5 在当前已测配置中领先。相比 Opus 5，Task Success 增加 17.9 个百分点，约为 2.56 倍；相比 Fable 5.1，增加 9.2 个百分点。
+## 当前事实表
 
-快照中的 Task Success 标记 n=200/222，其他指标覆盖率不同。公开发布前确认这些 n 的含义、宏平均口径和 evaluator 版本；完整评测、缺失记录及失败构建应按同一协议处理。暂不使用“统计显著”“所有物理能力均最强”等表述。
+以下对应 `v2-published-2026-10-17`，共同范围为 222 实例 / 39 任务族；来源、聚合和零分规则见 [本轮快照说明](../RESULT_SNAPSHOT_2026-10-17.md)。V2WScore 从 owner 的正式分数表读取，原始分项按 dashboard 的 family macro 规则计算，不能用展示列简单互算。
 
-# 三轮发布内容
+| 模型 | V2WScore | Task Success | Stage Progress | Build Rate |
+| --- | ---: | ---: | ---: | ---: |
+| Claude Opus 5.5 | 52.41 | 33.6% | 0.61 | 92.3% |
+| GPT-6.1 Sol | 41.19 | 10.9% | 0.30 | 91.0% |
+| Meta Muse Wonder | 27.90 | 2.8% | 0.08 | 86.7% |
+| Gemini 4 Argon | Testing | — | — | — |
 
-| 顺序 | 内容 | 主要素材 | 发布条件 |
-| --- | --- | --- | --- |
-| 第一轮 | 新结果和能力提升 | 1200 × 630 成绩分享图，独立结果页 | 数值和口径确认，公开链接可访问 |
-| 第二轮 | 新模型完成旧模型失败的任务 | 源视频、旧模型、Opus 5.5 三栏执行视频，15 至 25 秒 | 拿到同一实例的真实 Opus 5.5 输出与判定 |
-| 第三轮 | 一个仍然失败的物理交互或诊断差异 | 执行视频，事件判定，少量解释性字幕 | 判定经过复核，解释不超过证据范围 |
+同一当前快照中的 Claude Opus 5 为 37.91 V2WScore、12.9% task success；Opus 5.5 的 task success 高 20.7 个百分点，约为 2.61 倍，均由未舍入数值计算。Claude Fable 5.1 为 44.13 V2WScore、22.2% task success。
 
-默认从成绩图开始。真实 Opus 5.5 视频就绪后再发案例，形成连续内容。每条内容链接回对应结果或案例，不把旧模型视频当成新模型输出。
+2026-10-09 的截图快照已单独归档，其中的旧成功率、覆盖数和增幅不能继续作为当前宣发数字；论文结果及 human-assisted reference 也独立保留。本次读取已保存的发布记录，不是重新运行整套 runtime 评测。
 
-# 第一条推文
+## 发布节奏与条件
 
-建议使用下面的成绩发布版，配首版成绩图。发布前替换公开结果链接；与发布相关的官方账号和模型作者需核对后再标记。
+| 内容 | 主要素材 | 条件 |
+| --- | --- | --- |
+| 各模型独立报告 | 正式总分、分项、覆盖数、成绩图 | 数据及口径核对，真实报告链接和图片可访问 |
+| 同输入执行案例 | 源视频、各模型实际 rollout、正式判定 | case / run / evaluator 可追溯，输入哈希一致 |
+| 能力诊断与失败分析 | 分项指标、失败或反例、必要过程日志 | 解释不超过证据范围，缺失证据不记成失败 |
+| 公司技术 Blog / Jinzhou 文章 | 方法、评测设计、技术解释及明确来源的实验 | 独立作者与编辑复核；不受四模型结果数量门槛控制 |
+| 四旗舰联合比较文章 | 四模型报告、共同协议、真实对照素材 | Gemini 补齐，协议和文章复核完成，再单独批准发布 |
 
-> Can a coding agent watch a video and build a world that works?
+当前可准备 Opus、GPT、Muse 的独立报告及案例；Gemini 保持 Coming soon。四旗舰联合比较文章仍在准备，不能写成四模型测试已经完成；公司技术 Blog 按其独立编辑进度推进。
+
+## 独立结果推文草稿
+
+以下为待审核草稿。外发前确认公开链接、可访问的成绩图及拟标记的模型团队账号和作者身份。
+
+> Can a coding agent watch a video and recreate the interaction in simulation?
 >
-> Opus 5.5 now leads Video2World: 29.4% task success, up from Opus 5’s 11.5% — 2.56×.
+> In Video2World's current published-record snapshot, Opus 5.5 leads with 52.41 V2WScore and 33.6% task success, compared with Opus 5's 12.9% — about 2.61×.
 >
-> It writes the scene, physics and robot behavior. We run the result.
+> Inspect the metrics, coverage and actual executions: [PUBLIC_RESULT_URL]
+
+GPT 独立报告草稿：
+
+> GPT-6.1 Sol on Video2World: 41.19 V2WScore, 91.0% build rate and 10.9% task success in the current published-record snapshot.
 >
-> [PUBLIC_RESULT_URL]
+> Executable worlds and completed interactions reveal different parts of the result. Explore the metrics and same-video cases: [PUBLIC_GPT_REPORT_URL]
 
-更偏能力问题的备选版：
+Muse 独立报告草稿：
 
-> Can a coding agent turn a video into a working physical world?
+> Meta Muse Wonder on Video2World: 27.90 V2WScore, 86.7% build rate and 2.8% task success in the current published-record snapshot.
 >
-> On our new Video2World snapshot, Opus 5.5 reaches 29.4% task success, up from Opus 5's 11.5%.
+> The report separates executability, physical fidelity and task outcomes with metrics and actual rollouts: [PUBLIC_MUSE_REPORT_URL]
+
+## 案例素材与文案
+
+首页五个源视频各有 GPT、Fable、Muse、Opus 四个模型位置，都有实际 rollout 和正式布尔判定，源输入与保留的原始视频哈希一致。Gemini 不占首页案例位置，在 News 和四厂商 campaign 中保持待测。缺少素材或判定时显示等待证据或等待判定，不填造成功或失败。
+
+当前五例对照 GPT、Fable、Muse、Opus，沿用早期为展示 Opus 成功 / Fable 失败差异而筛选的集合，不能估计四模型总体胜率、任务族胜率或完整失败分类。总体结论使用完整榜单，单例仅解释对应源视频上的已观测结果。
+
+独立模型 News 按 build、Geometry、Dynamics、Functionality 展开诊断。强模型的亮点优先用真实成功案例与同输入下其他模型的正式失败对照说明，再补分项指标与覆盖数；弱项或反例也应保留。不要将这类定向挑选的成功对照解释为总体优势的比例。
+
+> Same source video. Different model-built worlds.
 >
-> Inspect the result, the protocol and the remaining gaps: [PUBLIC_RESULT_URL]
-
-# 案例推文模板
-
-真实素材接入后使用以下模板。方括号字段均来自实际案例，不预先填写任务名或成功判定。
-
-> Same video. Same task. Different outcome.
+> On [CASE], [MODEL_A] receives a formal [OUTCOME_A] judgment and [MODEL_B] receives [OUTCOME_B].
 >
-> On [TASK], [BASELINE] stops at [FAILED_STAGE]. Opus 5.5 completes [VERIFIED_EVENT].
+> Inspect the original input, actual rollouts and recorded metrics: [PUBLIC_CASE_URL]
+
+短视频每条只讲一个可复查差异，标注精确模型名、case ID、正式判定和结果页入口。可为观看剪辑，但保留完整视频，不能暗示不同 rollout 逐帧对齐；反馈利用和修复能力需过程日志，不能只由最终结果推断。
+
+## 诊断文案备选
+
+> Opus 5.5 leads the current Video2World snapshot, but the diagnostics remain mixed.
 >
-> Original video and both physical executions below.
-> Case and full results: [PUBLIC_CASE_URL]
-
-15 至 25 秒视频建议：前 2 秒显示任务；随后固定三栏“Source / Baseline / Opus 5.5”；关键事件处加一条字幕；最后 2 秒显示结果、Video2World 标识和案例链接。单条视频只讲一个差异。不同执行时长可为观看做剪辑，但保留完整执行入口，避免暗示逐帧对应。
-
-三个首选素材分别是：旧模型失败而新模型成功的案例；能直接看见接触、插入或操作顺序的困难案例；一个 Opus 5.5 仍然失败的案例。必须保留实例 ID、模型 ID、run 标签、冻结产物、evaluator 版本、任务判定、stage progress 和来源。
-
-# 诊断推文备选
-
-> Opus 5.5 leads our Video2World snapshot, but the diagnostics tell a richer story.
+> Fixed-reference task success is 10.8%, compared with Fable 5.1's 13.1%. Build rate, task completion and reference-action behavior deserve separate inspection.
 >
-> Fixed-ref Task: 8.6%, versus Fable 5.1's 11.4%.
->
-> End-to-end success and world reliability deserve separate inspection.
-> Results: [PUBLIC_RESULT_URL]
+> Metrics and coverage: [PUBLIC_RESULT_URL]
 
-这条使用原表诊断名。进一步解释场景与动作的原因之前，确认 Fixed-ref 的具体执行定义，并检查共同样本。避免仅凭总分或某一列推断因果。
+正式总分的零分分母规则与原始诊断列的有限值覆盖规则不同，具体见快照说明。没有额外检验时，不使用“统计显著”“所有能力最强”或成本优势表述。
 
-# 每个新模型的更新流程
+## 每轮更新流程
 
-1. 固定实例集合、评测版本和比较口径，记录模型 ID、agent harness、effort 和预算。
+1. 保存精确模型 ID、run、agent harness、已提供配置、evaluator / contract 版本及共同实例范围。
+2. 从正式来源读取总分，按对应 dashboard 规则处理分项，保留每项实例数和任务族数，不把缺失值普遍填零。
+3. 更新榜单、独立 News、模型页和分析；榜单顶部的紧凑 News feed 链接到同一模型页。未完成者保持 Testing，历史快照与论文结果独立归档。
+4. 从同一快照生成成绩图和事实表，清理旧分数及增幅，检查浏览器、视频、分享链接和移动端。
+5. 保留案例源输入、实际输出、正式判定、run、evaluator 和哈希，同时寻找反例与失败案例。
+6. 发布获批后使用对应公开页面；独立模型 News、公司技术 Blog 与四旗舰联合比较文章分别审核，后者的四结果门槛不用于公司技术 Blog。
+7. 记录官方引用、有效转发、访问和合作线索，区分官方背书与员工个人转发。
 
-2. 导出全指标及每列有效样本数，区分方法失败和 evaluator 错误。
-
-3. 更新网站数据文件，新增独立结果页；未完成的模型保留 Testing 状态，不填估计分数。
-
-4. 使用同一数据生成成绩图和推文事实表。
-
-5. 选择三个可复查的案例，保留原输入、基线、完整执行与判定。
-
-6. 先发布结果，后发布案例及失败分析；由同一网页承接。
-
-7. 记录模型团队的有效转发、官方引用、项目访问和主动合作。官方账号背书与员工个人转发分别记录。
-
-GPT-6.1 目前只展示正在测试。结果未确认前不做排名预测。
-
-# 两位负责人的分工
-
-子骏负责评测口径、发现、案例解释、最终文案和模型团队沟通。Yangjing 负责运行、导出、素材整理、网站数据与页面更新。根据双方擅长可以调整。
-
-每轮复用的成果是一个结果页、一张成绩图、三个候选案例及三轮文案。第一轮完成后，以一次新模型更新所需人工时间作为流程是否轻量的指标。
-
-资料来源：[Video2World 论文](https://arxiv.org/abs/2610.04432)、[项目主站](https://aetherlabsai.github.io/Video2World/)，以及本轮提供的榜单截图和 Real2Sim benchmark 测试记录。公开图库当前是论文已有模型的案例；新版 Opus 5.5 录像仍需从评测运行中导出。
+子骏负责口径、发现、案例解释、最终文案和模型团队沟通；Yangjing 负责运行、导出、素材和网站更新。每轮复用报告、成绩图、可核查案例与草稿，避免为同一事实维护多份不同数字。

@@ -49,6 +49,15 @@
     const direction = state.sortDir === 'desc' ? -1 : 1;
     return [...getRows()].sort((a,b) => (a.reference ? -1 : b.reference ? 1 : direction * (a.metrics[state.sort] - b.metrics[state.sort])));
   }
+  function competitionRanks(rows, key) {
+    let rank = 0, previous;
+    return new Map(rows.map((row, index) => {
+      const value = row.metrics[key];
+      if (index === 0 || value !== previous) rank = index + 1;
+      previous = value;
+      return [row.id, rank];
+    }));
+  }
   function filteredRows() {
     return sortedRows().filter(row => {
       const providerMatch = state.provider === 'All' || (state.provider === 'Others' ? !['Anthropic','OpenAI','Google','Meta','Reference'].includes(row.provider) : row.provider === state.provider);
@@ -60,6 +69,16 @@
     $('#provider-filters').innerHTML = providers.map(p => `<button type="button" data-provider="${esc(p)}" class="${p === state.provider ? 'active' : ''}" aria-pressed="${p === state.provider}">${esc(p)}</button>`).join('');
     $$('#provider-filters button').forEach(b => b.addEventListener('click', () => {state.provider = b.dataset.provider; renderProviders(); renderTable();}));
   }
+  // The leaderboard keeps the height of its full, unfiltered list: filtering or searching leaves
+  // empty room at the foot of the section instead of pulling the next section up.
+  let boardFullHeight=0;
+  function holdBoardHeight(){
+    const sec=$('#leaderboard');if(!sec||!sec.getBoundingClientRect)return;
+    const full=state.provider==='All'&&!state.search;
+    if(full){sec.style.minHeight='';boardFullHeight=sec.getBoundingClientRect().height;}
+    if(boardFullHeight)sec.style.minHeight=`${Math.ceil(boardFullHeight)}px`;
+  }
+  globalThis.addEventListener?.('resize',()=>{if(state.provider==='All'&&!state.search){holdBoardHeight();}else{boardFullHeight=0;const sec=$('#leaderboard');if(sec)sec.style.minHeight='';}});
   function renderTable() {
     const available = getMetrics();
     // Metric views: key metrics, one evaluation dimension (V2WScore stays first as the anchor), or all.
@@ -69,7 +88,7 @@
       : available.filter(m => m.key === 'score' || m.group === view);
     $('#leaderboard-table').classList.toggle('all-metrics',view === 'all');
     $('#table-head').innerHTML = `<tr><th scope="col">#</th><th scope="col">Model / configuration</th>${columns.map(m => `<th scope="col" aria-sort="${state.sort===m.key ? (state.sortDir==='desc'?'descending':'ascending') : 'none'}"><button type="button" data-sort="${esc(m.key)}" class="${state.sort===m.key?'sorted':''}" title="${esc(m.description)}"><span>${esc(m.short)} ${m.direction==='up'?'↑':'↓'}</span><small>${esc(m.unit)}</small></button></th>`).join('')}</tr>`;
-    const globalRanks = new Map(sortedRows().filter(r => !r.reference).map((r,i) => [r.id,i+1]));
+    const globalRanks = competitionRanks(sortedRows().filter(r => !r.reference), state.sort);
     const best = Object.fromEntries(columns.map(m => [m.key,(m.direction==='up'?Math.max:Math.min)(...getRows().filter(r=>!r.reference).map(r=>r.metrics[m.key]))]));
     const rows = filteredRows();
     $('#table-body').innerHTML = rows.length ? rows.map(r => `<tr class="${r.featured?'featured ':''}${r.reference?'reference':''}"><td class="${r.reference?'ref-rank':''}"><span class="table-rank rank-${r.reference?'ref':globalRanks.get(r.id)}">${r.reference?'REF':String(globalRanks.get(r.id)).padStart(2,'0')}</span></td><td><button type="button" class="model-name" data-model="${esc(r.id)}"><span>${esc(r.name)}${r.featured?'<span class="inline-tag">NEW LEADER</span>':''}</span><small>${esc(r.provider)}${r.run_label?` · ${esc(r.run_label)}`:''}</small></button></td>${columns.map(m => {
@@ -85,11 +104,11 @@
     }));
     $$('#table-body button[data-model]').forEach(b=>b.addEventListener('click',()=>openModel(b.dataset.model)));
     $('#board-summary').textContent = `${rows.filter(r=>!r.reference).length} configurations${state.snapshot==='paper'?' + reference':''}`;
-    renderChart();
+    renderChart();holdBoardHeight();
   }
   // Model logos for the podium (assets/logos, from @lobehub/icons-static-svg, MIT); the letter
   // mark stays as the fallback for providers without one.
-  const providerLogos = {Anthropic:'claude-color',OpenAI:'openai',Google:'gemini-color','Moonshot AI':'kimi-color',Moonshot:'kimi-color',DeepSeek:'deepseek-color',Alibaba:'qwen-color','Z.ai':'zhipu-color',Zhipu:'zhipu-color'};
+  const providerLogos = {Anthropic:'claude-color',OpenAI:'openai',Google:'gemini-color',Meta:'meta-mono','Moonshot AI':'kimi-color',Moonshot:'kimi-color',DeepSeek:'deepseek-color',Alibaba:'qwen-color','Z.ai':'zhipu-color',Zhipu:'zhipu-color'};
   function modelLogo(row) {
     const file = providerLogos[row.provider];
     return file ? `<img src="${esc(path(`assets/logos/${file}.svg`))}" alt="" width="56" height="56" decoding="async">` : esc(modelMark(row));
@@ -99,30 +118,50 @@
     return marks[row.provider] || row.name.replace(/^(Claude |GPT-)/,'').slice(0,1);
   }
   function renderChart() {
-    const rows = filteredRows().sort((a,b)=>(a.reference?-1:b.reference?1:b.metrics[state.chart]-a.metrics[state.chart]));
+    // the ranking board always shows every model; provider and search filters apply to the table only
+    const rows = getRows().sort((a,b)=>(a.reference?-1:b.reference?1:b.metrics[state.chart]-a.metrics[state.chart]));
     const contenders = rows.filter(r=>!r.reference);
-    const globalRanks = new Map([...getRows()].filter(r=>!r.reference).sort((a,b)=>b.metrics[state.chart]-a.metrics[state.chart]).map((r,i)=>[r.id,i+1]));
+    const globalRanks = competitionRanks([...getRows()].filter(r=>!r.reference).sort((a,b)=>b.metrics[state.chart]-a.metrics[state.chart]), state.chart);
     const leader = contenders[0];
-    const isFiltered = state.provider!=='All' || state.search!=='';
+    const isFiltered = false;
     const colors = {Anthropic:'#dfb899',OpenAI:'#8acbb3',Google:'#95b8f5',Moonshot:'#c1a7ec',DeepSeek:'#93b6ec',Alibaba:'#edb478',Zhipu:'#b5abea'};
     $('#chart-title').textContent = labels[state.chart];
-    $('#ranking-context').textContent = `${isFiltered?'Filtered models':'All models'} · higher is better`;
-    $('#rank-chart').setAttribute('aria-label',`${labels[state.chart]} by model on a zero to one hundred scale. ${state.snapshot==='current'?'Supplied snapshot.':'Published paper results.'}`);
-    // Podium in the classic order (#2 · #1 · #3): the leader stands raised in the middle on a
-    // plinth. The full ranking with score bars follows below, as before.
+    if($('#ranking-context'))$('#ranking-context').textContent = `${isFiltered?'Filtered models':'All models'} · higher is better`;
+    if($('#rank-chart'))$('#rank-chart').setAttribute('aria-label',`${labels[state.chart]} by model on a zero to one hundred scale. ${state.snapshot==='current'?'Supplied snapshot.':'Published paper results.'}`);
+    // Ranking board in the manner of 2048: every model is a tile on a four-column board; the
+    // higher the value, the deeper the tile. #1 takes a 2x2 tile, #2 and #3 a 2x1 tile, the rest
+    // one cell each; empty cells show as wells. Switching "Rank by" slides tiles to their new
+    // places (FLIP), and a tile that changes rank pops briefly.
     const unit=state.chart==='score'?'points':'pp';
-    const podiumCard=(r,i)=>{
-      const gap=leader.metrics[state.chart]-r.metrics[state.chart];
-      return `<button type="button" class="podium-card podium-${i+1} ${i===0?'podium-leader':''}" data-rank-model="${esc(r.id)}" aria-label="Rank ${globalRanks.get(r.id)}, ${esc(r.name)}, ${format(r.metrics[state.chart],state.chart,true)}. Open details.">
-        <span class="podium-avatar"><span class="provider-mark">${modelLogo(r)}</span>${(()=>{const rank=globalRanks.get(r.id),medal={1:'🥇',2:'🥈',3:'🥉'}[rank];return medal?`<span class="podium-badge is-medal" aria-hidden="true">${medal}</span>`:`<span class="podium-badge">${rank}</span>`;})()}</span>
-        <span class="podium-provider">${esc(r.provider)}</span><strong class="podium-name">${esc(r.name)}</strong>
-        <span class="podium-score">${format(r.metrics[state.chart],state.chart)}<small>${state.chart==='score'?'/ 100':'%'}</small></span>
-        <span class="podium-note">${i===0?(contenders[1]?`+${format(r.metrics[state.chart]-contenders[1].metrics[state.chart],state.chart)} ${unit} ahead`:'Highest in view'):`−${format(gap,state.chart)} ${unit} from lead`}</span>
+    const board=$('#rank-podium');
+    const before=new Map(),prevRank=new Map();
+    (board.querySelectorAll?board.querySelectorAll('[data-rank-model]'):[]).forEach(t=>{if(t.getBoundingClientRect){before.set(t.dataset.rankModel,t.getBoundingClientRect());prevRank.set(t.dataset.rankModel,t.dataset.rank);}});
+    const vals=contenders.map(r=>r.metrics[state.chart]),hi=Math.max(...vals),lo=Math.min(...vals);
+    const slot=i=>i===0?[1,1,2,2]:i===1?[3,1,2,1]:i===2?[3,2,2,1]:[1+(i-3)%4,3+Math.floor((i-3)/4),1,1];
+    const rowsUsed=contenders.length?Math.max(...contenders.map((_,i)=>{const q=slot(i);return q[1]+q[3]-1;})):0;
+    const tile=(r,i)=>{
+      const v=r.metrics[state.chart],t=hi>lo?(v-lo)/(hi-lo):1,[c,ro,w,h]=slot(i),rank=globalRanks.get(r.id);
+      const note=i===0?(contenders[1]?`${format(v-contenders[1].metrics[state.chart],state.chart)} ${unit} ahead`:'Highest in view'):`${format(leader.metrics[state.chart]-v,state.chart)} ${unit} behind`;
+      return `<button type="button" class="podium-card rank-tile ${i===0?'podium-leader tile-lead':i<3?'tile-wide':'tile-small'} ${t>0.62?'is-deep':''}" data-rank-model="${esc(r.id)}" data-rank="${rank}" style="--c:${c};--r:${ro};--w:${w};--h:${h};--t:${t.toFixed(3)}" aria-label="Rank ${rank}, ${esc(r.name)}, ${format(v,state.chart,true)}. Open details.">
+        <span class="tile-top"><span class="tile-rank">${String(rank).padStart(2,'0')}</span>${r.featured?'<span class="podium-new">New</span>':''}</span>
+        <span class="tile-id"><span class="provider-mark">${modelLogo(r)}</span><span><span class="podium-provider">${esc(r.provider)}</span><strong class="podium-name">${esc(r.name)}</strong></span></span>
+        <span class="podium-score">${format(v,state.chart)}<small>${state.chart==='score'?'/ 100':'%'}</small></span>
+        ${i<3?`<span class="podium-note">${note}</span>`:''}
       </button>`;
     };
-    const top3=contenders.slice(0,3), order=[1,0,2].filter(i=>top3[i]);
-    $('#rank-podium').innerHTML = order.map(i=>podiumCard(top3[i],i)).join('');
-    $('#rank-chart').innerHTML = rows.length ? rows.map((r,i)=>`<button type="button" class="chart-row ${r.id===leader?.id?'ladder-leader':''} ${r.reference?'reference':''}" data-rank-model="${esc(r.id)}" style="--row-color:${colors[r.provider]||'#b9acd6'};--row-order:${i}"><span class="chart-rank">${r.reference?'REF':String(globalRanks.get(r.id)).padStart(2,'0')}</span><span class="chart-name">${esc(r.name)}${r.featured?'<span class="ladder-new">NEW</span>':''}</span><span class="chart-lane"><span class="chart-bar" style="width:${Math.max(0,Math.min(100,r.metrics[state.chart]))}%" aria-hidden="true"><i></i></span></span><span class="chart-value">${format(r.metrics[state.chart],state.chart,state.chart!=='score')}</span><span class="chart-open" aria-hidden="true">↗</span></button>`).join('') : '<p class="ranking-empty">No models match this filter. Try another search or provider.</p>';
+    const wells=Array.from({length:rowsUsed*4},(_,k)=>`<span class="tile-well" aria-hidden="true" style="--c:${1+k%4};--r:${1+Math.floor(k/4)}"></span>`).join('');
+    board.innerHTML = contenders.length?wells+contenders.map(tile).join(''):'<p class="rank-empty">No models match the current filters.</p>';
+    board.style&&board.style.setProperty&&board.style.setProperty('--rows',rowsUsed);
+    const reduce=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if(!reduce&&board.querySelectorAll)board.querySelectorAll('[data-rank-model]').forEach(el=>{
+      if(!el.animate||!el.getBoundingClientRect)return;
+      const id=el.dataset.rankModel,old=before.get(id),now=el.getBoundingClientRect();
+      if(!old){el.animate([{transform:'scale(.6)',opacity:0},{transform:'scale(1)',opacity:1}],{duration:260,easing:'cubic-bezier(.2,.8,.2,1)'});return;}
+      const dx=old.left-now.left,dy=old.top-now.top;  // slide only; size changes settle with the pop, so text never stretches
+      if(dx||dy)el.animate([{transform:`translate(${dx}px,${dy}px)`},{transform:'none'}],{duration:420,easing:'cubic-bezier(.3,.7,.2,1)'});
+      if(prevRank.get(id)&&prevRank.get(id)!==el.dataset.rank)el.animate([{scale:1},{scale:1.06},{scale:1}],{duration:220,delay:400,easing:'ease-out'});
+    });
+    if($('#rank-chart'))$('#rank-chart').innerHTML = rows.length ? rows.map((r,i)=>`<button type="button" class="chart-row ${r.id===leader?.id?'ladder-leader':''} ${r.reference?'reference':''}" data-rank-model="${esc(r.id)}" style="--row-color:${colors[r.provider]||'#b9acd6'};--row-order:${i}"><span class="chart-rank">${r.reference?'REF':String(globalRanks.get(r.id)).padStart(2,'0')}</span><span class="chart-name">${esc(r.name)}${r.featured?'<span class="ladder-new">NEW</span>':''}</span><span class="chart-lane"><span class="chart-bar" style="width:${Math.max(0,Math.min(100,r.metrics[state.chart]))}%" aria-hidden="true"><i></i></span></span><span class="chart-value">${format(r.metrics[state.chart],state.chart,state.chart!=='score')}</span><span class="chart-open" aria-hidden="true">↗</span></button>`).join('') : '<p class="ranking-empty">No models match this filter. Try another search or provider.</p>';
     $$('[data-rank-model]').forEach(b=>b.addEventListener('click',()=>openModel(b.dataset.rankModel)));
   }
   function openModel(id) {
@@ -136,7 +175,7 @@
   function setSnapshot(snapshot) {
     state.snapshot=snapshot;state.sort='score';state.sortDir='desc';
     ['current','paper'].forEach(s=>{const b=$(`#snapshot-${s}`);b.classList.toggle('active',s===snapshot);b.setAttribute('aria-pressed',String(s===snapshot));});
-    $('#snapshot-date').textContent=snapshot==='current'?`Snapshot · ${state.board.snapshot_date}`:'Archive · published project page';
+    $('#snapshot-date').textContent=snapshot==='current'?lastUpdated():'Archive · published project page';
     if($('#snapshot-note'))$('#snapshot-note').textContent=snapshot==='current'?'Recorded results and per-metric coverage. Select a model for counts and source details.':'Published-paper values are shown separately. The newer snapshot uses different reported values and diagnostic labels.';
     renderTable();
   }
@@ -176,29 +215,81 @@
   function citation(){return '@article{tang2026video2world,\n  title={Video2World: Benchmarking Coding Agents for Interactive World Modeling from Embodied Videos},\n  author={Tang, Jinzhou and Zhang, Zijun and Yang, Jing and others},\n  journal={arXiv preprint arXiv:2610.04432},\n  year={2026}\n}';}
   function commonEvents(){
     $('#cite-button')?.addEventListener('click',()=>copy(citation(),'Citation copied'));
+    $('.news-brief-close')?.addEventListener('click',closeBrief);
+    globalThis.addEventListener?.('hashchange',()=>{if((location.hash||'').startsWith('#news='))openBrief(decodeURIComponent(location.hash.slice(6)));});
+    $('#news-brief')?.addEventListener('click',e=>{const d=$('#news-brief');if(e.target===d&&d.getBoundingClientRect){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closeBrief();}});
+    $('#news-brief')?.addEventListener('close',()=>{if($('#news-brief').open)return;briefRequest++;$$('#news-brief video').forEach(v=>v.pause());if((location.hash||'').startsWith('#news='))history.replaceState(null,'',`${location.pathname}${location.search}`);});
     $('.dialog-close')?.addEventListener('click',()=>{const d=$('#model-dialog');if(d.close)d.close();else d.removeAttribute('open');});
     $('#model-dialog')?.addEventListener('close',()=>{if(location.hash.startsWith('#model='))history.replaceState(null,'',`${location.pathname}${location.search}`);});
     $('#model-dialog')?.addEventListener('click',e=>{if(e.target===$('#model-dialog')){const r=e.target.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)e.target.close();}});
     document.addEventListener('visibilitychange',()=>{if(document.hidden)$$('video').forEach(v=>v.pause());});
     bindVideoFallbacks();
   }
-  // Homepage case explorer: verified Opus 5.5 cases with the baseline on the same source video.
-  // Homepage teaser: one featured verified case (source / Opus 5.5 / baseline); the full set and
-  // the per-case reading live on the Opus 5.5 page.
+  // Homepage: one source video and four coding agents. A missing rollout or task judgment
+  // stays explicitly unavailable; it is never rendered as a failed task.
   async function initVerifiedCases(){
-    if(!$('#opus-case-explorer'))return;
-    const collection=await fetchJSON('data/opus-5-5-cases.json');const list=collection.cases||[];
+    const root=$('#opus-case-explorer');if(!root)return;
+    const collection=await fetchJSON('data/frontier-cases.json');
+    const list=collection.cases||[];
     if(!list.length){const sec=$('#cases');if(sec)sec.hidden=true;return;}
-    const opus=state.board.models.find(m=>m.id==='opus-5-5');
-    const c=list.find(x=>x.id===collection.featured_case)||list[0];
-    if($('#opus-case-tabs'))$('#opus-case-tabs').hidden=true;
-    $('#opus-case-explorer').innerHTML=`<div class="case-summary"><div><h3>${esc(c.title)}</h3><p>${esc(c.analysis||c.description)}</p></div><span class="outline-tag">${esc(c.dataset||c.family)}</span></div><div class="case-videos">${renderCaseColumn({...c.source,name:'Source video'},true)}${renderCaseColumn({...c.model,name:opus?.name||'Claude Opus 5.5'})}${c.baseline?renderCaseColumn(c.baseline):''}</div><div class="case-controls"><div><button type="button" data-opus-play>Play together ▷</button><button type="button" data-opus-reset>Restart ↺</button></div><a class="button secondary" href="${path('updates/opus-5-5.html')}#model-update-cases">See all ${list.length} cases on the Opus 5.5 page <span>→</span></a></div>`;
-    $('[data-opus-play]').addEventListener('click',()=>$$('#opus-case-explorer video').forEach(v=>v.play().catch(()=>{})));
-    $('[data-opus-reset]').addEventListener('click',()=>$$('#opus-case-explorer video').forEach(v=>{v.pause();v.currentTime=0;}));
-    bindVideoFallbacks();
+    const modelIds=[...new Set(collection.model_ids||['gpt-6-1-sol','fable-5-1','meta-muse','opus-5-5'])];
+    const modelRow=id=>state.board.models.find(m=>m.id===id)||state.board.pending_models.find(m=>m.id===id);
+    const num=i=>String(i+1).padStart(2,'0');
+    const metrics=output=>Object.entries({...((typeof output.progress==='number')?{progress:output.progress}:{}),...output.metrics}).filter(([key,value])=>metric(key)&&typeof value==='number'&&Number.isFinite(value)).map(([key,value])=>{
+      const m=metric(key),unit=['%','0–1','0–100'].includes(m.unit)?'':` ${m.unit}`;
+      return `<div class="cs-metric"><span>${esc(m.label)} ${m.direction==='up'?'↑':'↓'}</span><strong>${format(value,key,m.unit==='%')}${esc(unit)}</strong></div>`;
+    }).join('');
+    const column=(c,id)=>{
+      const output=c.models?.[id]||{},row=modelRow(id),name=row?.name||output.name||id;
+      const testing=output.status==='testing';
+      const hasMedia=!testing&&output.status!=='awaiting_evidence'&&typeof output.video==='string'&&output.video.trim()!=='';
+      const judged=hasMedia&&typeof output.success==='boolean';
+      const status=judged?(output.success?'success':'failed'):testing?'testing':hasMedia?'unjudged':'awaiting_evidence';
+      const label=judged?(output.success?'Success':'Failed'):testing?'Coming soon':hasMedia?'Outcome pending':'Awaiting evidence';
+      const message=testing?'Testing is in progress. Verified case evidence will appear here.':hasMedia?'A rollout is available; the formal task judgment has not been supplied.':'No verified rollout is available for this model on this source video.';
+      const media=hasMedia?`<div class="cs-frame"><video data-case-video="${esc(id)}" src="${esc(path(output.video))}"${output.poster?` poster="${esc(path(output.poster))}"`:''} muted playsinline loop preload="metadata" controls aria-label="${esc(name)} simulation for ${esc(c.title)}"></video></div>`:`<div class="cs-placeholder"><span class="cs-placeholder-title">${label}</span><p>${message}</p></div>`;
+      const measured=hasMedia?metrics(output):'';
+      const evidenceNote=hasMedia?(judged?output.description:message):'';
+      return `<article class="cs-run ${judged?(output.success?'is-win':'is-loss'):'is-pending'}" data-model-case="${esc(id)}" data-case-status="${status}"><div class="cs-run-top"><h4 class="cs-run-name">${esc(name)}</h4><span class="cs-outcome" aria-label="${esc(name)}: ${label}">${judged?`<span aria-hidden="true">${output.success?'✓':'✕'}</span> `:''}${label}</span></div>${media}${evidenceNote?`<p class="cs-evidence-note">${esc(evidenceNote)}</p>`:''}${measured?`<div class="cs-metrics">${measured}</div>`:''}</article>`;
+    };
+    const lede=collection.selection?.note||'Compare four coding agents on the same source video, with their verified rollouts and task judgments.';
+    const head=`<div class="cs-head"><span class="eyebrow section-index">${esc($('#opus-case-explorer .section-index')?.textContent||'Case studies')}</span><h2 id="cases-title">${esc($('#cases-title')?.textContent||'Same video. Different worlds.')}</h2><p class="cs-lede">${esc(lede)}</p></div>`;
+    const select=i=>{
+      const c=list[i];
+      $$('#opus-case-explorer video').forEach(v=>v.pause());
+      $$('#opus-case-explorer .cs-thumb').forEach((t,j)=>{t.classList.toggle('active',j===i);t.setAttribute('aria-selected',String(j===i));});
+      $('#opus-case-explorer .cs-detail').setAttribute('aria-labelledby',`frontier-case-${i}`);
+      $('#opus-case-explorer .cs-detail').innerHTML=`<div class="cs-detail-head"><div><span class="eyebrow">Case ${num(i)} / ${esc(c.dataset||c.family)}</span><h3 id="frontier-case-${i}">${esc(c.title)}</h3></div><a class="cs-source" href="${esc(path(c.source.video))}" target="_blank" rel="noopener">View source <span aria-hidden="true">↗</span></a></div><div class="cs-playback"><div><button type="button" data-case-play>Play available simulations ▷</button><button type="button" data-case-reset>Restart ↺</button></div><span class="sync-note">Same input video; rollouts are not time-aligned.</span></div><div class="cs-runs cs-frontier-runs">${modelIds.map(id=>column(c,id)).join('')}</div>`;
+      const vids=$$('#opus-case-explorer .cs-detail video');
+      const playing=()=>vids.some(v=>!v.paused);
+      const sync=()=>root.classList.toggle('is-playing',playing());
+      vids.forEach(v=>{v.addEventListener('play',sync);v.addEventListener('pause',sync);});
+      const play=root.querySelector('[data-case-play]'),reset=root.querySelector('[data-case-reset]');
+      play.disabled=reset.disabled=vids.length===0;
+      play.addEventListener('click',()=>vids.forEach(v=>v.play().catch(()=>{})));
+      reset.addEventListener('click',()=>vids.forEach(v=>{v.pause();v.currentTime=0;}));
+      root.classList.remove('is-playing');
+      bindVideoFallbacks();
+    };
+    root.innerHTML=`${head}<div class="cs-gallery"><div class="cs-library-head"><span class="eyebrow">Source video library</span><a class="cs-all" href="#updates">All model reports <span aria-hidden="true">↗</span></a></div><div class="cs-library" style="--case-columns:${Math.min(5,list.length)}" role="tablist" aria-label="Choose a source video">${list.map((c,i)=>`<button class="cs-thumb" id="frontier-tab-${i}" type="button" role="tab" aria-selected="false" aria-controls="frontier-case-panel" data-case-thumb="${i}" aria-label="Case ${num(i)}: ${esc(c.title)}"><span class="cs-thumb-media"><img src="${esc(path(c.source.poster))}" alt="" loading="lazy"><span class="cs-thumb-play" aria-hidden="true"></span></span><span class="cs-thumb-label"><span>${esc(c.dataset||c.family)}</span>${esc(c.title)}</span></button>`).join('')}</div></div><div class="cs-detail" id="frontier-case-panel" role="tabpanel"></div>`;
+    $$('#opus-case-explorer .cs-thumb').forEach((t,i)=>t.addEventListener('click',()=>select(i)));
+    select(0);
   }
   async function initHome(){
-    renderProviders();renderTable();if($('#case-tabs'))renderCase();renderLatest();await initVerifiedCases();
+    // first screen = title + Model News: the news section takes the height left under the title
+    // Title + Model News form the first screen: their content is centred in the height under
+    // the navigation (equal room above the title and below the news), so the next section starts
+    // below the fold and nothing is crammed on tall screens.
+    const intro=$('.leaderboard-intro'),news=$('#updates'),rootStyle=document.documentElement?.style;
+    const fitIntro=()=>{
+      if(!intro||!news||!rootStyle?.setProperty||!globalThis.innerHeight)return;
+      rootStyle.setProperty('--first-pad','0px');
+      const nav=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-height'))||96;
+      const free=globalThis.innerHeight-nav-intro.offsetHeight-news.offsetHeight;
+      rootStyle.setProperty('--first-pad',`${Math.max(0,Math.floor(free/2))}px`);
+    };
+    globalThis.addEventListener?.('resize',fitIntro);
+    renderProviders();renderTable();if($('#case-tabs'))renderCase();renderLatest();fitIntro();document.fonts?.ready?.then(fitIntro);await initVerifiedCases();
     $('#model-search').addEventListener('input',e=>{state.search=e.target.value;renderTable();});
     $('#snapshot-current')?.addEventListener('click',()=>setSnapshot('current'));$('#snapshot-paper')?.addEventListener('click',()=>setSnapshot('paper'));
     const viewNotes = {key:'',Geometry:'Does the initialized scene match the observed one? Scene, object shape and size.',Dynamics:'When it runs, does the object move as in the video? Terminal translation and rotation.',Functionality:'Does the task actually get done? Task success and stage progress.',all:'Every reported metric, including fixed-reference diagnostics and build rate.'};
@@ -218,25 +309,115 @@
     if($('#case-tabs')&&location.hash.startsWith('#case=')){const params=new URLSearchParams(location.hash.slice(1));state.caseId=params.get('case')||state.caseId;state.caseA=params.get('a')||state.caseA;state.caseB=params.get('b')||state.caseB;renderCase();$('#cases').scrollIntoView();}
     if(location.hash.startsWith('#model='))openModel(decodeURIComponent(location.hash.slice(7)));
   }
+  // Date the results data was last updated (leaderboard.json snapshot_date), e.g. "Last updated · 09 Oct 2026".
+  function lastUpdated(){return `Last updated · ${new Date(`${state.board.snapshot_date}T00:00:00Z`).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'})}`;}
   function renderLatest(){
     const best=[...state.board.models].sort((a,b)=>b.metrics.score-a.metrics.score)[0];
-    $('#release-title').textContent=best.name;
     const highlight=$('.release-highlight');
-    highlight.querySelectorAll('a').forEach(a=>a.href=path(`updates/${best.id}.html`));
-    const values=highlight.querySelectorAll('.metric-value');
-    values[0].textContent=format(best.metrics.score,'score');values[1].innerHTML=`${format(best.metrics.success,'success')}<span>%</span>`;
-    values[2].innerHTML=`${format(best.metrics.build,'build')}<span>%</span>`;
-    highlight.querySelectorAll('.metric-name')[2].textContent='Build rate';
+    if(highlight){
+      $('#release-title').textContent=best.name;
+      highlight.querySelectorAll('a').forEach(a=>{a.setAttribute('href',path(`updates/${best.id}.html`));a.setAttribute('aria-label',`Read ${best.name} results`);});
+      const values=highlight.querySelectorAll('.metric-value');
+      values[0].textContent=format(best.metrics.score,'score');values[1].innerHTML=`${format(best.metrics.success,'success')}<span>%</span>`;
+      values[2].innerHTML=`${format(best.metrics.build,'build')}<span>%</span>`;
+      highlight.querySelectorAll('.metric-name')[2].textContent='Build rate';
+    }
     const count=$$('.benchmark-stats dt')[2];if(count)count.textContent=state.board.models.length;
-    $('#snapshot-date').textContent=`Snapshot · ${new Date(`${state.board.snapshot_date}T00:00:00Z`).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'})}`;
+    $('#snapshot-date').textContent=lastUpdated();
     renderNews();renderCampaign();
   }
-  function renderNews(){
-    const published=state.news.entries.filter(n=>n.status==='published').sort((a,b)=>b.date.localeCompare(a.date));
-    const grid=$('.updates-grid');
-    if(grid)grid.innerHTML=published.map(n=>`<a href="${path(n.href)}" class="update-card featured-update"><div class="update-top"><span class="release-tag">${n.kind==='roundup'?'JOINT ANALYSIS':'MODEL REPORT'}</span><span>${esc(n.date_label||'Published')} · ${esc(n.date)}</span></div><h3>${esc(n.title)}</h3><p>${esc(n.summary)}</p><div class="update-bottom"><span>Read the report</span><span>↗</span></div></a>`).join('')+state.board.pending_models.map(m=>`<a href="${path(`updates/${m.id}.html`)}" class="update-card upcoming-update"><div class="update-top"><span class="testing-tag"><span class="status-dot"></span>TESTING</span><span>${esc(m.provider)}</span></div><h3>${esc(m.name)}</h3><p>Results pending. The report will examine task completion, build reliability, physical fidelity and verified case evidence.</p><div class="update-bottom"><span>View testing status</span><span>↗</span></div></a>`).join('');
-    const summary=$('#nav-news-summary');if(summary&&published[0])summary.innerHTML=`<span class="news-nav-kicker">LATEST REPORT</span><a href="${path(published[0].href)}">${esc(published[0].title)} <span>↗</span></a><a class="news-nav-all" href="${path('news/index.html')}">All four model reports & testing progress →</a>`;
+  // ===== Score composition (2026-10-18) =====
+  // V2WScore = mean(F, G, D) x 100 (leaderboard.json score_components, 0-1 each).
+  const MIX=[['F','Functionality'],['G','Geometry'],['D','Dynamics']];
+  const mixOf=r=>r?.score_components||null;
+  // three thin bars for a ranking tile
+  function mixMini(r){const c=mixOf(r);if(!c)return '';return `<span class="tile-mix" aria-label="Functionality ${c.F.toFixed(2)}, geometry ${c.G.toFixed(2)}, dynamics ${c.D.toFixed(2)}">${MIX.map(([k])=>`<span><em>${k}</em><i><b style="width:${(c[k]*100).toFixed(1)}%"></b></i></span>`).join('')}</span>`;}
+  // grouped bars: one group per component, one bar per model; the first model is the subject
+  function mixCompare(rows){
+    rows=rows.filter(r=>mixOf(r));if(!rows.length)return '';
+    return `<div class="mix-legend">${rows.map((r,i)=>`<button type="button" class="mix-key" data-mix="${esc(r.id)}" style="--k:${i}"><i></i>${esc(r.name)}<small>${format(r.metrics.score,'score')}</small></button>`).join('')}</div><div class="mix-grid">${MIX.map(([k,l])=>`<div class="mix-group"><span class="mix-label">${l}</span>${rows.map((r,i)=>`<span class="mix-row" data-mix="${esc(r.id)}" style="--k:${i}"><i style="--w:${(mixOf(r)[k]*100).toFixed(1)}%"></i><b>${mixOf(r)[k].toFixed(2)}</b></span>`).join('')}</div>`).join('')}</div>`;
   }
+  function bindMix(root){
+    if(!root?.querySelectorAll)return;
+    root.querySelectorAll('[data-mix]').forEach(el=>{const id=el.dataset.mix;const on=v=>root.querySelectorAll('[data-mix]').forEach(x=>x.classList.toggle('is-dim',v&&x.dataset.mix!==id));el.addEventListener('pointerenter',()=>on(true));el.addEventListener('pointerleave',()=>on(false));el.addEventListener('focus',()=>on(true));el.addEventListener('blur',()=>on(false));});
+    if('IntersectionObserver' in globalThis){const io=new IntersectionObserver(es=>{if(es[0].isIntersecting){root.classList.add('is-drawn');io.disconnect();}},{threshold:.25});io.observe(root);}else root.classList.add('is-drawn');
+  }
+  function renderScoreMix(root,ids){
+    if(!root)return;const rows=ids.map(id=>state.board.models.find(m=>m.id===id)).filter(Boolean);
+    root.innerHTML=mixCompare(rows);bindMix(root);
+  }
+  // Model news (2026-10-18): each published model result is a news card with a headline, dek,
+  // model logo and three numbers. "report" entries open their standalone page; "brief"
+  // entries open a dialog with story points, a comparison and the model's own cases.
+  const fmtDay=d=>new Date(`${d}T00:00:00Z`).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'});
+  function newsTarget(entry){return entry.detail==='brief'?`#news=${entry.id}`:path(entry.href);}
+  function newsRank(id){const order=[...state.board.models].sort((a,b)=>b.metrics.score-a.metrics.score);return [competitionRanks(order,'score').get(id)||0,order.length];}
+  function newsCard(entry){
+    const row=state.board.models.find(m=>m.id===entry.model_id),name=row?.name||entry.title,[rank,total]=row?newsRank(row.id):[0,0];
+    const brief=entry.detail==='brief';
+    const stats=row?`<span class="nc-stats"><span><b>${format(row.metrics.score,'score')}</b><small>V2WScore</small></span><span><b>${format(row.metrics.success,'success',true)}</b><small>Task success</small></span><span><b>${format(row.metrics.build,'build',true)}</b><small>Build rate</small></span></span>`:'';
+    return `<a class="news-card" href="${esc(newsTarget(entry))}" data-news-id="${esc(entry.id)}" data-model="${esc(entry.model_id||'')}" data-detail="${esc(entry.detail||'report')}"${brief?' aria-haspopup="dialog"':''}><span class="nc-cover">${entry.cover?`<img src="${esc(path(entry.cover))}" alt="${esc(entry.cover_alt||'')}" loading="lazy" decoding="async">`:''}${rank?`<span class="nc-rank">#${rank} <small>of ${total}</small></span>`:''}</span><span class="nc-body"><span class="nc-kicker"><span>Model news</span><time datetime="${esc(entry.date)}">${esc(fmtDay(entry.date))}</time></span><span class="nc-model">${esc(name)}</span><strong class="nc-headline">${esc(entry.headline||entry.title)}</strong><span class="nc-dek">${esc(entry.dek||entry.summary)}</span>${stats}<span class="nc-cta">${brief?'Open the brief <i aria-hidden="true">+</i>':'Read the full report <i aria-hidden="true">↗</i>'}</span></span></a>`;
+  }
+  function pendingCard(m){
+    return `<div class="news-card is-pending" data-pending="${esc(m.id)}"><span class="nc-cover"><span class="nc-pending-mark">${esc(m.provider||'')}</span></span><span class="nc-body"><span class="nc-kicker"><span>In evaluation</span><span>Coming soon</span></span><span class="nc-model">${esc(m.name)}</span><strong class="nc-headline">Results are being verified</strong><span class="nc-dek">The news will follow once the evaluation is complete on the same 222-instance protocol.</span></span></div>`;
+  }
+  function bindNewsCards(root){
+    root.querySelectorAll('[data-detail="brief"][data-news-id]').forEach(c=>{if(c.dataset.bound)return;c.dataset.bound='1';c.addEventListener('click',e=>{e?.preventDefault?.();openBrief(c.dataset.newsId);});});
+  }
+  function renderNews(){
+    const published=state.news.entries.filter(n=>n.status==='published').sort((a,b)=>b.date.localeCompare(a.date)||((a.detail==='report')?-1:(b.detail==='report')?1:0));
+    const models=published.filter(e=>e.kind==='model_result');
+    const pending=state.board.pending_models||[];
+    const html=models.map(newsCard).join('')+pending.map(pendingCard).join('');
+    const home=$('#latest-model-news');
+    if(home){home.innerHTML=newsFront(models,pending);bindNewsCards(home);}
+    const feed=$('#news-feed');
+    if(feed){feed.innerHTML=html;bindNewsCards(feed);}
+    const summary=$('#nav-news-summary');
+    if(summary)summary.innerHTML=`<span class="news-nav-kicker">MODEL EVALUATION UPDATES</span>${models.slice(0,4).map(entry=>`<a class="news-nav-report" href="${esc(entry.detail==='brief'?path(`index.html#news=${entry.id}`):path(entry.href))}">${esc(state.board.models.find(m=>m.id===entry.model_id)?.name||entry.title)} <span aria-hidden="true">↗</span></a>`).join('')}`;
+    if((location.hash||'').startsWith('#news='))openBrief(decodeURIComponent(location.hash.slice(6)));
+  }
+  // The homepage keeps the headline ticker and compact model-logo cards; execution videos
+  // remain in the case studies and model reports.
+  function newsFront(models,pending){
+    const rowOf=e=>state.board.models.find(m=>m.id===e.model_id);
+    const tick=[...models.map(e=>{const r=rowOf(e);return `<span class="nh-tick"><b>${esc(e.headline||e.title)}</b>${r?` <em>${format(r.metrics.score,'score')} V2WScore · ${format(r.metrics.success,'success',true)} task success</em>`:''}</span>`;}),...pending.map(m=>`<span class="nh-tick"><b>${esc(m.name)}</b> In evaluation <em>Coming soon</em></span>`)].join('<i class="nh-dot" aria-hidden="true">◆</i>');
+    const item=e=>{const r=rowOf(e),brief=e.detail==='brief';return `<li><a class="nh-item" href="${esc(newsTarget(e))}" data-news-id="${esc(e.id)}" data-detail="${esc(e.detail||'report')}"${brief?' aria-haspopup="dialog"':''}><span class="nh-story-brand"><span class="nh-model-logo" aria-hidden="true">${r?modelLogo(r):''}</span><span class="nh-story-identity"><span class="nh-item-kicker">${esc(r?.name||e.title)}</span><time datetime="${esc(e.date)}">${esc(fmtDay(e.date))}</time></span>${r?`<span class="nh-item-rank">#${newsRank(r.id)[0]}</span>`:''}</span><strong>${esc(e.headline||e.title)}</strong><span class="nh-item-dek">${esc(e.dek||e.summary)}</span>${r?`<span class="nc-stats"><span><b>${format(r.metrics.score,'score')}</b><small>V2WScore</small></span><span><b>${format(r.metrics.success,'success',true)}</b><small>Task success</small></span><span><b>${format(r.metrics.build,'build',true)}</b><small>Build rate</small></span></span>`:''}<span class="nh-item-cta">${brief?'Open brief <i aria-hidden="true">+</i>':'Read report <i aria-hidden="true">↗</i>'}</span></a></li>`;};
+    const pend=m=>`<li><div class="nh-item is-pending" data-pending="${esc(m.id)}"><span class="nh-story-brand"><span class="nh-model-logo" aria-hidden="true">${modelLogo(m)}</span><span class="nh-story-identity"><span class="nh-item-kicker">${esc(m.name)}</span><span>Coming soon</span></span></span><strong>Results are being verified</strong><span class="nh-item-dek">The evaluation is in progress. A model report will follow once the results are verified.</span><span class="nh-pending-label">In evaluation</span></div></li>`;
+    return `<div class="nh-ticker" aria-label="Latest headlines"><span class="nh-ticker-tag">Latest</span><div class="nh-ticker-track"><div class="nh-ticker-move"><span class="nh-ticker-set">${tick}<i class="nh-dot" aria-hidden="true">◆</i></span><span class="nh-ticker-set" aria-hidden="true">${tick}<i class="nh-dot" aria-hidden="true">◆</i></span></div></div></div><ol class="nh-list">${models.map(item).join('')}${pending.map(pend).join('')}</ol>`;
+  }
+  // Brief dialog for a news entry without a standalone page.
+  let briefRequest=0;
+  async function openBrief(id){
+    const entry=state.news.entries.find(e=>e.id===id&&e.detail==='brief'),dialog=$('#news-brief');if(!entry||!dialog)return;
+    const request=++briefRequest;
+    const row=state.board.models.find(m=>m.id===entry.model_id);if(!row)return;
+    const [rank,total]=newsRank(row.id),M=k=>metric(k),byId=i=>state.board.models.find(m=>m.id===i);
+    const val=(r,k)=>{const m=M(k);const u=['%','0–1','0–100'].includes(m.unit)?(m.unit==='%'?'%':''):` ${m.unit}`;return `${format(r.metrics[k],k)}${u}`;};
+    // comparisons stay inside the model's own line (its earlier versions); the funnel's reference
+    // is the median of all evaluated models, not another named model
+    const cmp=entry.compare,line=cmp?(cmp.models||[cmp.before,row.id]).map(byId).filter(Boolean):[];
+    const better=(k,a,b)=>{const m=M(k);return m.direction==='up'?a>b:a<b;};
+    const table=line.length>1?`<div class="nb-block"><h3>${esc(cmp.title)}</h3><table class="nb-compare"><thead><tr><th scope="col">Metric</th>${line.map(r=>`<th scope="col">${esc(r.name)}</th>`).join('')}</tr></thead><tbody>${cmp.metrics.map(k=>`<tr><td>${esc(M(k).short||M(k).label)} <span aria-hidden="true">${M(k).direction==='up'?'↑':'↓'}</span></td>${line.map((r,i)=>{if(r.id!==row.id)return `<td>${val(r,k)}</td>`;const p=line[i-1];return `<td class="${!p||r.metrics[k]===p.metrics[k]?'':better(k,r.metrics[k],p.metrics[k])?'is-up':'is-down'}"><b>${val(r,k)}</b></td>`;}).join('')}</tr>`).join('')}</tbody></table></div>`:'';
+    const median=k=>{const v=state.board.models.map(m=>m.metrics[k]).sort((a,b)=>a-b),n=v.length;return n%2?v[(n-1)/2]:(v[n/2-1]+v[n/2])/2;};
+    const funnel=entry.funnel?(()=>{const steps=[['build','World builds',v=>v],['progress','Stage progress',v=>v*100],['success','Task success',v=>v]];const ref={metrics:Object.fromEntries(steps.map(([k])=>[k,median(k)]))};return `<div class="nb-block"><h3>${esc(entry.funnel.title)}</h3><div class="nb-funnel">${steps.map(([k,l,f])=>`<div class="nb-step"><span class="nb-step-label">${l}</span><span class="nb-step-bars"><i class="is-a" style="width:${Math.max(1,f(row.metrics[k])).toFixed(1)}%"></i><i class="is-b" style="width:${Math.max(1,f(ref.metrics[k])).toFixed(1)}%"></i></span><span class="nb-step-val"><b>${val(row,k)}</b><small>median ${val(ref,k)}</small></span></div>`).join('')}</div><div class="af2-legend"><span class="is-a">${esc(row.name)}</span><span class="is-b">Median of all ${state.board.models.length} models</span></div></div>`;})():'';
+    const points=(entry.points||[]).length?`<div class="nb-points">${entry.points.map(p=>`<div class="nb-point"><span>${esc(p.label)}</span><p>${esc(p.text)}</p></div>`).join('')}</div>`:'';
+    const mixBlock=mixOf(row)?`<div class="nb-block nb-mix"><h3>Where the score comes from</h3>${mixCompare([row,...line.filter(r=>r.id!==row.id).reverse()])}</div>`:'';
+    $('#news-brief-content').innerHTML=`<header class="nb-head">${entry.cover?`<img class="nb-cover" src="${esc(path(entry.cover))}" alt="${esc(entry.cover_alt||'')}">`:''}<div><span class="nc-kicker"><span>Model news</span><time datetime="${esc(entry.date)}">${esc(fmtDay(entry.date))}</time></span><h2 id="news-brief-title">${esc(entry.headline)}</h2><p>${esc(entry.dek)}</p><div class="nb-stats"><span><b>#${rank}</b><small>of ${total} models</small></span><span><b>${format(row.metrics.score,'score')}</b><small>V2WScore</small></span><span><b>${format(row.metrics.success,'success',true)}</b><small>Task success</small></span><span><b>${format(row.metrics.build,'build',true)}</b><small>Build rate</small></span></div></div></header>${points}${mixBlock}${funnel}${table}<div class="nb-block nb-cases" id="news-brief-cases"></div><footer class="nb-foot"><span>Snapshot as of ${esc(fmtDay(entry.date))} · 222 instances</span><a class="text-link" href="${esc(path('index.html#leaderboard'))}" data-brief-board>See the full ranking ↗</a></footer>`;
+    bindMix($('#news-brief-content .nb-mix'));
+    if(dialog.showModal&&!Object.hasOwn(dialog.attrs||{},'open')&&!dialog.open)dialog.showModal();else if(!dialog.showModal)dialog.setAttribute('open','');
+    if(history.replaceState&&location.hash!==`#news=${id}`)history.replaceState(null,'',`${location.pathname}${location.search}#news=${id}`);
+    $('[data-brief-board]')?.addEventListener('click',()=>{dialog.close?.();});
+    if(entry.cases){
+      const col=await fetchJSON(entry.cases);if(request!==briefRequest)return;const list=[...(col.cases||[])].sort((a,b)=>(b.model?.success?1:0)-(a.model?.success?1:0));
+      const box=$('#news-brief-cases');if(!box||!list.length){if(box)box.hidden=true;return;}
+      box.innerHTML=`<h3>${esc(row.name)} in action</h3><p class="nb-note">Real rollouts on shared source videos; successes first. Formal task judgments.</p><div class="nb-tabs" role="tablist">${list.map((c,i)=>`<button type="button" role="tab" data-brief-case="${i}" aria-selected="false">${c.model?.success?'<i class="ok" aria-hidden="true">✓</i>':'<i class="no" aria-hidden="true">✕</i>'}${esc(c.title)}</button>`).join('')}</div><div class="nb-case" id="news-brief-case"></div>`;
+      const show=i=>{const c=list[i],m=c.model;box.querySelectorAll('[data-brief-case]').forEach(b=>{const on=+b.dataset.briefCase===i;b.classList.toggle('active',on);b.setAttribute('aria-selected',String(on));});box.querySelectorAll('video').forEach(v=>v.pause());
+        $('#news-brief-case').innerHTML=`<div class="nb-clip"><span class="nb-clip-top">Source video <em>${esc(c.dataset||'')}</em></span><video src="${esc(path(c.source.video))}" poster="${esc(path(c.source.poster))}" muted playsinline loop controls preload="metadata"></video></div><div class="nb-clip ${m.success?'is-win':'is-loss'}"><span class="nb-clip-top">${esc(row.name)} <em class="nb-verdict">${m.success?'✓ Task success':'✕ Task failed'}</em></span><video src="${esc(path(m.video))}" poster="${esc(path(m.poster))}" muted playsinline loop controls preload="metadata"></video></div>`;bindVideoFallbacks();};
+      box.querySelectorAll('[data-brief-case]').forEach(b=>b.addEventListener('click',()=>show(+b.dataset.briefCase)));show(0);
+    }
+  }
+  function closeBrief(){briefRequest++;const d=$('#news-brief');if(!d)return;d.querySelectorAll('video').forEach(v=>v.pause());if(d.close)d.close();else d.removeAttribute('open');}
   function renderCampaign(){
     const campaign=state.news.campaign;
     const title=$('#campaign-title');if(!title)return;
@@ -245,7 +426,7 @@
     const complete=rows.filter(r=>r.metrics!=null).length;
     $('#campaign-status').textContent=`${complete} of ${campaign.model_ids.length} results available`;
     const roundup=state.news.entries.find(n=>n.kind==='roundup'&&n.status==='published'&&n.href===campaign.roundup_href);
-    const message=$('#campaign-message');if(message)message.textContent=roundup?'The joint comparison is published. Read it alongside the individual model reports.':complete===campaign.model_ids.length?'All four result rows are available. The joint article will follow after protocol and evidence review.':'Claude, Gemini, Muse and GPT: the joint comparison and blog will follow once all four results are verified on a compatible protocol.';
+    const message=$('#campaign-message');if(message)message.textContent=roundup?'The joint comparison is published. Read it alongside the individual model reports.':complete===campaign.model_ids.length?'All four result rows are available. The joint article will follow after protocol and evidence review.':'Claude, Gemini, Muse and GPT: the four-model comparison will follow once all results are verified on a compatible protocol.';
     const publication=$('#campaign-publication');if(publication)publication.innerHTML=roundup?`<a class="text-link" href="${esc(path(roundup.href))}">Read the joint analysis ↗</a>`:esc(campaign.publication_note||'Joint article in preparation.');
   }
 
@@ -255,7 +436,7 @@
     const list=collection.cases||[];if(!root||!list.length)return;
     const sel=collection.selection;
     const intro=sel?`<p class="case-selection">${esc(`Of the ${sel.common_cases} cases evaluated for both models, ${sel.matching_cases} are completed by ${modelName} and failed by ${sel.baseline_model} on the same source video. These ${sel.selected_cases} cover different task families. Outcomes are the formal task-success judgments.`)}</p>`:'';
-    root.innerHTML=`<span class="eyebrow section-index">${esc(kicker)}</span><h2>Inspect the new model's execution.</h2>${collection.intro?`<p class="case-lead">${esc(collection.intro)}</p>`:''}${intro}<div class="case-tabs" role="tablist" aria-label="Choose a case">${list.map((c,i)=>`<button type="button" role="tab" data-case-index="${i}" aria-selected="false">${esc(c.title)}</button>`).join('')}</div><div class="case-explorer" id="model-case-view" role="tabpanel"></div>`;
+    root.innerHTML=`<div class="section-heading"><div><span class="eyebrow section-index">${esc(kicker)}</span><h2>Inspect the new model's execution.</h2></div></div>${collection.intro?`<p class="case-lead">${esc(collection.intro)}</p>`:''}${intro}<div class="case-tabs" role="tablist" aria-label="Choose a case">${list.map((c,i)=>`<button type="button" role="tab" data-case-index="${i}" aria-selected="false">${esc(c.title)}</button>`).join('')}</div><div class="case-explorer" id="model-case-view" role="tabpanel"></div>`;
     const show=i=>{
       const c=list[i];
       root.querySelectorAll('[data-case-index]').forEach(b=>{const on=+b.dataset.caseIndex===i;b.classList.toggle('active',on);b.setAttribute('aria-selected',String(on));});
@@ -289,6 +470,16 @@
       bars.setAttribute('aria-label',`Task success: ${ids.map((id,i)=>`${row(id).name}, ${format(vals[i],'success',true)}`).join('; ')}.`);
     }
   }
+  // Model pages: number the visible top-level sections in order ("01 / …"), as on the main site.
+  function numberSections(){
+    let n=0;
+    $$('.update-page > section[data-rail]').forEach(sec=>{
+      if(sec.hidden)return;
+      const eb=sec.querySelector('.section-index');if(!eb)return;
+      const base=eb.dataset.label||eb.textContent.replace(/^\d+\s*\/\s*/,'').trim();
+      eb.dataset.label=base;eb.textContent=`${String(++n).padStart(2,'0')} / ${base}`;
+    });
+  }
   async function initUpdate(){
     bindNumbers();
     const opus=state.board.models.find(m=>m.id==='opus-5-5');
@@ -298,11 +489,13 @@
     $('#download-snapshot').addEventListener('click',()=>download(JSON.stringify(state.board,null,2),'video2world-v2-snapshot.json','application/json'));
     const collection=await fetchJSON('data/opus-5-5-cases.json');
     renderMetricCoverage(opus);
+    renderScoreMix($('#score-mix'),['opus-5-5','fable-5-1','opus-5']);
     renderModelAnalysis(opus.id,collection);
     if($('#model-cases-status'))$('#model-cases-status').hidden=collection.cases?.length>0;
     if(collection.cases?.length){
       $('#model-update-cases').hidden=false;
-      renderCaseSwitcher($('#model-update-cases'),collection,opus.name,'VERIFIED CASE EVIDENCE');
+      renderCaseSwitcher($('#model-update-cases'),collection,opus.name,'EXECUTION CASES');
+      const ch=$('#model-update-cases h2');if(ch)ch.textContent='Execution, side by side.';
       bindVideoFallbacks();
     }
     // Remaining failures (both models fail on the same video): shown once verified clips are supplied.
@@ -314,13 +507,61 @@
   }
   function renderMetricCoverage(row){
     const target=$('#generic-metric-coverage');if(!target)return;
-    target.innerHTML=state.board.metrics.map(m=>`<tr><td>${esc(m.label)}</td><td>${format(row.metrics[m.key],m.key,m.unit==='%')} ${!['%','0–1','0–100'].includes(m.unit)?esc(m.unit):''}</td><td>${row.coverage?.[m.key]!=null?`n=${row.coverage[m.key]} / ${state.board.instances}`:'Not supplied'}</td></tr>`).join('');
+    // Breakdown variant (Opus page): metrics already shown in the comparison table are left out,
+    // coverage reads "199 / 222", and a note summarises coverage of the headline metrics.
+    const skip=(target.dataset.exclude||'').split(',').filter(Boolean),breakdown=target.dataset.style==='breakdown',N=state.board.instances;
+    const cov=k=>row.coverage?.[k]!=null?`${breakdown?'':'n='}${row.coverage[k]} / ${N}`:'Not supplied';
+    const list=state.board.metrics.filter(m=>!skip.includes(m.key));
+    if(breakdown)list.sort((a,b)=>(b.key==='build')-(a.key==='build'));  // build rate leads the breakdown
+    const unitOf=m=>['%','0–1','0–100'].includes(m.unit)?'':breakdown&&m.unit==='deg'?'°':` ${esc(m.unit)}`;
+    target.innerHTML=list.map(m=>`<tr><td>${esc(m.label)}</td><td>${format(row.metrics[m.key],m.key,m.unit==='%')}${unitOf(m)}</td><td>${cov(m.key)}</td></tr>`).join('');
+    const note=$('#coverage-note');
+    if(note){const c=k=>row.coverage?.[k];note.textContent=`Coverage varies by metric. Task success: ${c('success')??'—'}/${N}; stage progress: ${c('progress')??'—'}/${N}. ${c('score')==null?'V2W Score coverage was not provided.':`V2W Score: ${c('score')}/${N}.`}`;}
+  }
+  // Corner glyph for a finding card: a small dot pattern, different per card.
+  function analysisGlyph(i){
+    const P=[[0,0,1,0,1,1,1,1,1,1,1,1,0,1,1,1],[1,0,1,0,0,1,0,1,1,0,1,0,0,1,0,1],[0,0,0,1,0,0,1,1,0,1,1,1,1,1,1,1],[1,1,1,1,1,0,0,1,1,0,0,1,1,1,1,1]][i%4];
+    return `<svg class="analysis-glyph" viewBox="0 0 16 16" aria-hidden="true">${P.map((on,k)=>on?`<circle cx="${2+(k%4)*4}" cy="${2+Math.floor(k/4)*4}" r="1.2"/>`:'').join('')}</svg>`;
+  }
+  // Finding figure: each metric as a large value with the baseline beside it ("vs. 20.2% · Fable
+  // 5.1"). Bars only where the two values differ clearly (>= 20% relative), and then both models
+  // get a bar (this model filled, the baseline outlined); near-equal values are called out instead.
+  function analysisFigure(row,keys,baselineId='fable-5-1'){
+    const ref=state.board.models.find(m=>m.id===baselineId&&m.id!==row.id);
+    const refName=ref?ref.name.replace(/^Claude /,''):'';
+    const items=keys.map(k=>{
+      const m=metric(k);if(!m||row.metrics[k]==null)return '';
+      const a=row.metrics[k],b=ref?.metrics?.[k],pct=m.unit==='%';
+      const unit=!['%','0–1','0–100'].includes(m.unit)?esc(m.unit):'';
+      const rel=b!=null?Math.abs(a-b)/(Math.max(Math.abs(a),Math.abs(b))||1):0;
+      const val=v=>`${format(v,k,pct)}${unit?` ${unit}`:''}`;
+      const bars=b!=null&&rel>=0.2?(()=>{const max=Math.max(a,b)||1;return `<div class="af2-bars"><i class="is-a" style="width:${(a/max*100).toFixed(1)}%"></i><i class="is-b" style="width:${(b/max*100).toFixed(1)}%"></i><div class="af2-legend"><span class="is-a">${esc(row.name.replace(/^Claude /,''))}</span><span class="is-b">${esc(refName)}</span></div></div>`;})():'';
+      const note=b==null?'':a===b?'Equal':rel<0.03?'Nearly identical':'';
+      // fixed rows per cell (label / value / baseline / bars or note / coverage) so cells line up;
+      // the sample count sits at the foot of its own cell, never next to a neighbour's label
+      return `<div class="af2-item"><div class="af2-head">${esc(m.short||m.label)} <span aria-hidden="true">${m.direction==='up'?'↑':'↓'}</span></div><div class="af2-value">${format(a,k,pct)}${unit?`<small>${unit}</small>`:''}</div>${b!=null?`<div class="af2-ref">vs. ${val(b)} · ${esc(refName)}</div>`:''}<div class="af2-extra">${bars}${note?`<div class="af2-note">${note}</div>`:''}</div>${row.coverage?.[k]!=null?`<div class="af2-cov"><span>n = ${row.coverage[k]} / ${state.board.instances}</span>${ref?.coverage?.[k]!=null?`<span>${esc(refName)}: n = ${ref.coverage[k]} / ${state.board.instances}</span>`:''}</div>`:''}</div>`;
+    }).join('');
+    return items?`<div class="analysis-figure af2">${items}</div>`:'';
   }
   function renderModelAnalysis(id,collection={}){
     const target=$('#model-analysis'),report=state.analysis.models[id];if(!target||!report)return;
     const row=state.board.models.find(m=>m.id===id),findings=row?report.findings||[]:[];
     target.hidden=false;
-    target.innerHTML=`<div class="section-heading"><div><span class="eyebrow section-index">${row?'CAPABILITIES & LIMITS':'THE UPCOMING REPORT'}</span><h2>${row?'What the evidence shows.':'What we will examine.'}</h2><p>${esc(report.intro)}</p></div></div>${findings.length?`<div class="analysis-grid">${findings.map(f=>`<article class="analysis-card"><h3>${esc(f.title)}</h3><p>${esc(f.body)}</p><div class="analysis-metrics">${(f.metric_keys||[]).map(k=>{const m=metric(k);if(!m)return '';return `<div class="analysis-metric"><span>${esc(m.label)} ${m.direction==='up'?'↑':'↓'}</span><strong>${format(row.metrics[k],k,m.unit==='%')}${!['%','0–1','0–100'].includes(m.unit)?` ${esc(m.unit)}`:''}</strong><span>${row.coverage?.[k]!=null?`n=${row.coverage[k]} / ${state.board.instances}`:'Coverage not supplied'}</span></div>`;}).join('')}</div>${(f.case_ids||[]).map(caseId=>{const i=(collection.cases||[]).findIndex(c=>c.id===caseId);return i<0?'':`<a class="analysis-case-link" href="#case-${i+1}" data-analysis-case="${i}">Inspect ${esc(collection.cases[i].title)} ↘</a>`;}).join(' ')}</article>`).join('')}</div>`:''}${report.evidence_priorities?.length?`<ul class="pending-evidence">${report.evidence_priorities.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>`:''}${report.limitations?.length?`<aside class="analysis-limits"><h3>${row?'Evidence and remaining gaps':'Results pending'}</h3><ul>${report.limitations.map(p=>`<li>${esc(p)}</li>`).join('')}</ul></aside>`:''}`;
+    target.innerHTML=`<div class="section-heading"><div><span class="eyebrow section-index">${row?'CAPABILITIES & LIMITS':'THE UPCOMING REPORT'}</span><h2>${row?'What the evidence shows.':'What we will examine.'}</h2><p>${esc(report.intro)}</p></div></div>${findings.length?(()=>{
+      // Editorial layout: findings grouped (Improvements / Limitations); each row is a vertical label,
+      // a hairline, then the text with its metric figure; label side alternates; no numbering.
+      const groups=[];findings.forEach((f,fi)=>{const g=f.group||(fi<2?'Improvements':'Limitations & trade-offs');let G=groups.find(x=>x.name===g);if(!G)groups.push(G={name:g,items:[]});G.items.push(f);});
+      let k=0;
+      // Groups whose findings carry a stamp (findings[].stamp) show it on the tickets instead of a
+      // divider heading; the group name stays available to screen readers.
+      const stamped=g=>G_STAMPED.has(g);
+      const G_STAMPED=new Set(groups.filter(G=>G.items.every(f=>f.stamp)).map(G=>G.name));
+      return `<div class="findings-editorial">${groups.map(G=>`<div class="fe-group ${stamped(G.name)?'is-stamped':''}">${stamped(G.name)?`<h3 class="sr-only">${esc(G.name)}</h3>`:`<div class="fe-group-head"><span class="fe-rule"></span><h3 class="fe-group-title">${esc(G.name)}</h3><span class="fe-rule"></span></div>`}${G.items.map(f=>`<article class="fe-row ${k++%2?'is-flip':''}"><div class="fe-ticket"><span class="fe-tag analysis-label">${esc(f.label||f.title)}</span><span class="fe-line" aria-hidden="true"></span><div class="fe-body"><div class="fe-text"><h4>${esc(f.title)}</h4><p>${esc(f.body)}</p><div class="fe-foot">${f.stamp?`<span class="fe-stamp tone-${esc(f.stamp_tone||'improvement')}" aria-hidden="true">${esc(f.stamp)}</span>`:''}<div class="analysis-links">${(f.case_ids||[]).map(caseId=>{const i=(collection.cases||[]).findIndex(c=>c.id===caseId);return i<0?'':`<a class="analysis-case-link" href="#case-${i+1}" data-analysis-case="${i}">Inspect ${esc(collection.cases[i].title)} ↘</a>`;}).join('')}</div></div></div><div class="fe-figure">${analysisFigure(row,f.metric_keys||[],f.baseline_model_id)}</div></div></div></article>`).join('')}</div>`).join('')}</div>`;
+    })():''}${report.evidence_priorities?.length?`<ul class="pending-evidence">${report.evidence_priorities.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>`:''}${report.limitations?.length?`<aside class="analysis-limits"><h3>${row?'Evaluation Notes':'Results pending'}</h3><ul>${report.limitations.map(p=>`<li>${esc(p)}</li>`).join('')}</ul></aside>`:''}`;
+    // All tickets share the height of the tallest one (desktop layout only).
+    const tickets=$$('#model-analysis .fe-ticket');
+    const equalize=()=>{if(!tickets.length||!tickets[0].getBoundingClientRect)return;tickets.forEach(t=>{t.style.minHeight='';});if((globalThis.innerWidth||0)<=760)return;const h=Math.max(...tickets.map(t=>t.offsetHeight||0));/* offsetHeight ignores the scroll-flow scale */tickets.forEach(t=>{t.style.minHeight=`${Math.ceil(h)}px`;});};
+    equalize();globalThis.addEventListener?.('resize',equalize);document.fonts?.ready?.then(equalize);
     $$('[data-analysis-case]').forEach(a=>a.addEventListener('click',()=>{
       const button=$$('#model-update-cases [data-case-index]')[Number(a.dataset.analysisCase)];if(button)button.click();
       $('#model-update-cases')?.scrollIntoView({behavior:'smooth',block:'start'});
@@ -345,7 +586,7 @@
     $('#generic-model-intro').textContent=`${row.name} records ${format(row.metrics.score,'score')} V2WScore and ${format(row.metrics.success,'success',true)} task success in this result set. Inspect the component metrics and supporting evidence below.`;
     $('#generic-score').innerHTML=`${format(row.metrics.score,'score')}<small>/ 100</small>`;
     $('#generic-success').textContent=format(row.metrics.success,'success',true);$('#generic-build').textContent=format(row.metrics.build,'build',true);
-    $('#generic-date').textContent=`Result date · ${update.date||state.board.snapshot_date}`;
+    $('#generic-date').textContent=`${update.date_label||'Snapshot as of'} · ${update.date||state.board.snapshot_date}`;
     const baselines=(update.compare_ids||[...state.board.models].filter(m=>m.id!==id).sort((a,b)=>b.metrics.score-a.metrics.score).slice(0,2).map(m=>m.id)).map(i=>state.board.models.find(m=>m.id===i)).filter(Boolean);
     $('#model-results-body').innerHTML=[row,...baselines].map(r=>`<tr class="${r.id===id?'featured':''}"><td>${esc(r.name)}</td><td>${format(r.metrics.score,'score')}</td><td>${format(r.metrics.success,'success',true)}</td><td>${format(r.metrics.progress,'progress')}</td></tr>`).join('');
     renderMetricCoverage(row);
@@ -365,6 +606,7 @@
       [state.board,state.archive,state.cases,state.news,state.analysis]=await Promise.all([fetchJSON('data/leaderboard.json'),fetchJSON('data/paper-results.json'),fetchJSON('data/cases.json'),fetchJSON('data/news.json'),fetchJSON('data/model-analysis.json')]);
       commonEvents();
       if(document.body.dataset.page==='home')await initHome();else if(document.body.dataset.page==='opus'){await initUpdate();renderCampaign();}else if(document.body.dataset.page==='news'){renderNews();renderCampaign();}else if(document.body.dataset.page==='model'){await initGenericUpdate();renderNews();}
+      numberSections();
       document.body.dataset.ready='true';
     } catch(error){
       console.error(error);const target=$('#table-body')||$('#model-results-body');if(target)target.innerHTML='<tr><td colspan="7" class="error-note">Results could not load. Please reload the page or download the supplied snapshot.</td></tr>';toast('Some data could not load. Please reload.');

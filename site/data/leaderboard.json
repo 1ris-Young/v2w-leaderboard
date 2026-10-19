@@ -1,17 +1,23 @@
 {
   "schema_version": 1,
   "title": "Video2World",
-  "snapshot_id": "v2-supplied-2026-10-09",
-  "snapshot_date": "2026-10-09",
-  "site_updated": "2026-10-13",
-  "status": "supplied_snapshot",
+  "snapshot_id": "v2-published-2026-10-17",
+  "snapshot_date": "2026-10-17",
+  "site_updated": "2026-10-17",
+  "status": "published_snapshot",
   "instances": 222,
   "families": 39,
   "videos": 189,
   "source": {
-    "type": "user_supplied_table",
-    "name": "Video2World evaluation screenshot supplied 2026-10-09",
-    "notes": "Values and per-metric n are transcribed from the supplied table. The run timestamp, exact agent settings and complete-manifest scoring status were not included."
+    "type": "owner_published_records",
+    "name": "Published Video2World records · snapshot as of 17 October 2026",
+    "date": "2026-10-17",
+    "published_at": "2026-10-17T15:07:46Z",
+    "source_document": "https://docs.google.com/document/d/1Yw3rTnCJQBGJVOVjMlSmQdK2qizu34KNImBXOBWr-9s",
+    "notes": "Formal V2WScore values are read from the final published score table. Component metrics are recomputed from the published per-instance records with the dashboard's exact scope and family-macro aggregation: 222 instances / 39 families. Finite per-metric coverage varies. Saved published records were read; this refresh does not constitute a fresh full runtime reevaluation.",
+    "aggregation": "Mean within task family, then equal mean across families with a finite value for that metric. Failure-status treatment follows the published dashboard aggregation.",
+    "score_scope": "222 instances / 39 families, identical across all published model scores; failures remain in the denominator at zero.",
+    "comparability": "Current rev5 internal scoring snapshot; separate from the paper results and its human-assisted reference."
   },
   "links": {
     "paper": "https://arxiv.org/abs/2610.04432",
@@ -88,7 +94,7 @@
       "direction": "down",
       "digits": 2,
       "group": "Dynamics",
-      "description": "Terminal relative translation error as labeled in the supplied snapshot."
+      "description": "Terminal relative translation error from the published per-instance records."
     },
     {
       "key": "terminal_rot",
@@ -98,7 +104,7 @@
       "direction": "down",
       "digits": 2,
       "group": "Dynamics",
-      "description": "Terminal relative rotation error as labeled in the supplied snapshot."
+      "description": "Terminal relative rotation error from the published per-instance records."
     },
     {
       "key": "fixed_success",
@@ -108,7 +114,7 @@
       "direction": "up",
       "digits": 1,
       "group": "Diagnostics",
-      "description": "Fixed-reference task diagnostic. The exact execution configuration should accompany the full evaluation receipt."
+      "description": "Fixed-reference task diagnostic under the published reference execution contract; distinct from the agent's own task success."
     },
     {
       "key": "fixed_progress",
@@ -138,7 +144,7 @@
       "direction": "up",
       "digits": 1,
       "group": "Build",
-      "description": "Reported executability rate. Coverage counts are preserved from the snapshot."
+      "description": "Family-macro executability rate from published records; per-metric coverage is shown."
     }
   ],
   "models": [
@@ -150,39 +156,76 @@
       "run_label": "opus55_v2",
       "metrics": {
         "score": 52.41,
-        "success": 29.4,
-        "progress": 0.57,
-        "scene_cd": 4.82,
-        "shape_cd": 0.83,
-        "size_err": 2.15,
-        "terminal_trans": 26.65,
-        "terminal_rot": 98.26,
-        "fixed_success": 8.6,
-        "fixed_progress": 0.3,
-        "fixed_ape": 15.28,
-        "build": 90.3
+        "success": 33.565814527352984,
+        "progress": 0.6066746974733086,
+        "scene_cd": 5.598745723319528,
+        "shape_cd": 0.8943443062272168,
+        "size_err": 2.406726554421663,
+        "terminal_trans": 29.01534379478931,
+        "terminal_rot": 98.54874964013369,
+        "fixed_success": 10.784397226704922,
+        "fixed_progress": 0.30650539631308865,
+        "fixed_ape": 16.814399583580084,
+        "build": 92.3076923076923
       },
       "coverage": {
-        "score": null,
-        "success": 200,
-        "progress": 191,
-        "scene_cd": 189,
-        "shape_cd": 189,
-        "size_err": 189,
-        "terminal_trans": 158,
-        "terminal_rot": 70,
-        "fixed_success": 174,
-        "fixed_progress": 174,
-        "fixed_ape": 174,
-        "build": 199
+        "score": 222,
+        "success": 222,
+        "progress": 213,
+        "scene_cd": 211,
+        "shape_cd": 211,
+        "size_err": 211,
+        "terminal_trans": 160,
+        "terminal_rot": 72,
+        "fixed_success": 179,
+        "fixed_progress": 179,
+        "fixed_ape": 179,
+        "build": 221
       },
-      "validated": 199,
+      "validated": 221,
       "featured": true,
-      "configuration": null,
+      "configuration": {
+        "agent_harness": "claude-code",
+        "agent_version": "claude-code 2.1.290",
+        "evaluator_schema": "eval2/4",
+        "scene_metric": "scene_cd_v5",
+        "reference_contract": "reference-candidate/1.2",
+        "relative_action_protocol": "fixed-relative-actions/1.0",
+        "public_contract": "camera-stage1/1.2",
+        "manifest_sha256": "bf2252e4790577e9c864fd93dfa0b1559d79a2da9a9463fb2d0e4a1198030995"
+      },
       "source": {
-        "type": "user_supplied_table",
-        "name": "supplied evaluation screenshot",
-        "date": "2026-10-09"
+        "type": "owner_published_records",
+        "name": "Published result records · 17 October 2026 snapshot",
+        "date": "2026-10-17",
+        "published_at": "2026-10-15T08:44:39Z",
+        "record_sha256": "1b5c5175d41e8106eda67bed29c75425b99d99efd29eab1714ab4b195efac592",
+        "verification": "Published saved records; fresh full runtime reevaluation not performed."
+      },
+      "coverage_families": {
+        "score": 39,
+        "success": 39,
+        "progress": 36,
+        "scene_cd": 35,
+        "shape_cd": 34,
+        "size_err": 34,
+        "terminal_trans": 23,
+        "terminal_rot": 13,
+        "fixed_success": 26,
+        "fixed_progress": 26,
+        "fixed_ape": 26,
+        "build": 39
+      },
+      "score_components": {
+        "F": 0.4478,
+        "G": 0.6375,
+        "D": 0.4869
+      },
+      "score_scope": {
+        "rows_in_denominator": 222,
+        "families": 39,
+        "rows_ok": 213,
+        "rows_scored_zero": 9
       }
     },
     {
@@ -193,39 +236,156 @@
       "run_label": "fable51_v2",
       "metrics": {
         "score": 44.13,
-        "success": 20.2,
-        "progress": 0.45,
-        "scene_cd": 4.84,
-        "shape_cd": 0.83,
-        "size_err": 2.21,
-        "terminal_trans": 27.2,
-        "terminal_rot": 109.83,
-        "fixed_success": 11.4,
-        "fixed_progress": 0.3,
-        "fixed_ape": 16.65,
-        "build": 83.9
+        "success": 22.243233974003207,
+        "progress": 0.4547623929568374,
+        "scene_cd": 5.423665189640026,
+        "shape_cd": 1.015556376366393,
+        "size_err": 2.8486908826370545,
+        "terminal_trans": 26.29087371783528,
+        "terminal_rot": 112.27558439135072,
+        "fixed_success": 13.050325742633436,
+        "fixed_progress": 0.2787379287379287,
+        "fixed_ape": 15.674886648393379,
+        "build": 87.17948717948718
       },
       "coverage": {
-        "score": null,
-        "success": 200,
-        "progress": 191,
-        "scene_cd": 186,
-        "shape_cd": 185,
-        "size_err": 185,
-        "terminal_trans": 154,
-        "terminal_rot": 74,
-        "fixed_success": 174,
-        "fixed_progress": 174,
-        "fixed_ape": 174,
-        "build": 200
+        "score": 222,
+        "success": 222,
+        "progress": 213,
+        "scene_cd": 208,
+        "shape_cd": 207,
+        "size_err": 207,
+        "terminal_trans": 156,
+        "terminal_rot": 76,
+        "fixed_success": 179,
+        "fixed_progress": 179,
+        "fixed_ape": 179,
+        "build": 222
       },
-      "validated": 200,
+      "validated": 222,
       "featured": false,
-      "configuration": null,
+      "configuration": {
+        "agent_harness": "claude-code",
+        "agent_version": "claude-code 2.1.276",
+        "evaluator_schema": "eval2/4",
+        "scene_metric": "scene_cd_v5",
+        "reference_contract": "reference-candidate/1.2",
+        "relative_action_protocol": "fixed-relative-actions/1.0",
+        "public_contract": "camera-stage1/1.2",
+        "manifest_sha256": "45a0ea4bb8f39157723a6d03233859df5a81e209e61b5fc84f13bd4fce900190"
+      },
       "source": {
-        "type": "user_supplied_table",
-        "name": "supplied evaluation screenshot",
-        "date": "2026-10-09"
+        "type": "owner_published_records",
+        "name": "Published result records · 17 October 2026 snapshot",
+        "date": "2026-10-17",
+        "published_at": "2026-10-15T08:44:39Z",
+        "record_sha256": "faf7d2fe32caf996e2809ed11487c00eb41cf1c427bef49a4a62a3431b069c65",
+        "verification": "Published saved records; fresh full runtime reevaluation not performed."
+      },
+      "coverage_families": {
+        "score": 39,
+        "success": 39,
+        "progress": 36,
+        "scene_cd": 34,
+        "shape_cd": 33,
+        "size_err": 33,
+        "terminal_trans": 22,
+        "terminal_rot": 15,
+        "fixed_success": 26,
+        "fixed_progress": 26,
+        "fixed_ape": 26,
+        "build": 39
+      },
+      "score_components": {
+        "F": 0.3222,
+        "G": 0.6115,
+        "D": 0.3903
+      },
+      "score_scope": {
+        "rows_in_denominator": 222,
+        "families": 39,
+        "rows_ok": 208,
+        "rows_scored_zero": 12
+      }
+    },
+    {
+      "id": "gpt-6-1-sol",
+      "name": "GPT-6.1 Sol",
+      "provider": "OpenAI",
+      "run_label": "gpt61sol_v2",
+      "metrics": {
+        "score": 41.19,
+        "success": 10.877975301052224,
+        "progress": 0.300983166781778,
+        "scene_cd": 5.830013517106337,
+        "shape_cd": 0.9188364610821088,
+        "size_err": 2.4320364219443675,
+        "terminal_trans": 38.80982744581511,
+        "terminal_rot": 93.34640184151765,
+        "fixed_success": 4.771905444982368,
+        "fixed_progress": 0.1584911082507236,
+        "fixed_ape": 16.160931181226825,
+        "build": 91.02564102564102
+      },
+      "coverage": {
+        "score": 222,
+        "success": 222,
+        "progress": 212,
+        "scene_cd": 209,
+        "shape_cd": 208,
+        "size_err": 208,
+        "terminal_trans": 158,
+        "terminal_rot": 69,
+        "fixed_success": 177,
+        "fixed_progress": 177,
+        "fixed_ape": 177,
+        "build": 221
+      },
+      "coverage_families": {
+        "score": 39,
+        "success": 39,
+        "progress": 36,
+        "scene_cd": 35,
+        "shape_cd": 34,
+        "size_err": 34,
+        "terminal_trans": 23,
+        "terminal_rot": 12,
+        "fixed_success": 26,
+        "fixed_progress": 26,
+        "fixed_ape": 26,
+        "build": 39
+      },
+      "model_id": "gpt-6.1-sol",
+      "validated": 221,
+      "featured": false,
+      "configuration": {
+        "agent_harness": "codex",
+        "agent_version": "codex-cli 0.154.0-alpha.6.2",
+        "evaluator_schema": "eval2/4",
+        "scene_metric": "scene_cd_v5",
+        "reference_contract": "reference-candidate/1.2",
+        "relative_action_protocol": "fixed-relative-actions/1.0",
+        "public_contract": "camera-stage1/1.2",
+        "manifest_sha256": "bf2252e4790577e9c864fd93dfa0b1559d79a2da9a9463fb2d0e4a1198030995"
+      },
+      "source": {
+        "type": "owner_published_records",
+        "name": "Published result records · 17 October 2026 snapshot",
+        "date": "2026-10-17",
+        "published_at": "2026-10-17T15:07:46Z",
+        "record_sha256": "9af60d3979e1923638d3f751043975e3b8a1efb87a848e57aeb4775abbc7aa71",
+        "verification": "Published saved records; fresh full runtime reevaluation not performed."
+      },
+      "score_components": {
+        "F": 0.1919,
+        "G": 0.6306,
+        "D": 0.4133
+      },
+      "score_scope": {
+        "rows_in_denominator": 222,
+        "families": 39,
+        "rows_ok": 210,
+        "rows_scored_zero": 12
       }
     },
     {
@@ -236,39 +396,76 @@
       "run_label": "gpt6astra_v2",
       "metrics": {
         "score": 38.27,
-        "success": 6.5,
-        "progress": 0.29,
-        "scene_cd": 5.78,
-        "shape_cd": 0.94,
-        "size_err": 2.21,
-        "terminal_trans": 34.76,
-        "terminal_rot": 114.41,
-        "fixed_success": 9.6,
-        "fixed_progress": 0.23,
-        "fixed_ape": 17.31,
-        "build": 83.9
+        "success": 8.844289613520383,
+        "progress": 0.3366980306216417,
+        "scene_cd": 6.467590507183652,
+        "shape_cd": 0.8909060757685061,
+        "size_err": 2.129319182571574,
+        "terminal_trans": 39.90089269840645,
+        "terminal_rot": 114.2265564327355,
+        "fixed_success": 11.634540673002212,
+        "fixed_progress": 0.223975890562429,
+        "fixed_ape": 20.033666401632654,
+        "build": 87.17948717948718
       },
       "coverage": {
-        "score": null,
-        "success": 200,
-        "progress": 182,
-        "scene_cd": 171,
-        "shape_cd": 170,
-        "size_err": 170,
-        "terminal_trans": 144,
-        "terminal_rot": 71,
-        "fixed_success": 154,
-        "fixed_progress": 154,
-        "fixed_ape": 154,
-        "build": 190
+        "score": 222,
+        "success": 222,
+        "progress": 213,
+        "scene_cd": 193,
+        "shape_cd": 192,
+        "size_err": 192,
+        "terminal_trans": 146,
+        "terminal_rot": 73,
+        "fixed_success": 159,
+        "fixed_progress": 159,
+        "fixed_ape": 159,
+        "build": 222
       },
-      "validated": 190,
+      "validated": 222,
       "featured": false,
-      "configuration": null,
+      "configuration": {
+        "agent_harness": "codex",
+        "agent_version": "codex-cli 0.154.0-alpha.6.2",
+        "evaluator_schema": "eval2/4",
+        "scene_metric": "scene_cd_v5",
+        "reference_contract": "reference-candidate/1.2",
+        "relative_action_protocol": "fixed-relative-actions/1.0",
+        "public_contract": "camera-stage1/1.2",
+        "manifest_sha256": "45a0ea4bb8f39157723a6d03233859df5a81e209e61b5fc84f13bd4fce900190"
+      },
       "source": {
-        "type": "user_supplied_table",
-        "name": "supplied evaluation screenshot",
-        "date": "2026-10-09"
+        "type": "owner_published_records",
+        "name": "Published result records · 17 October 2026 snapshot",
+        "date": "2026-10-17",
+        "published_at": "2026-10-15T08:44:39Z",
+        "record_sha256": "3ea1af13a8e3e7e29e4492e58773f10dc230ae3dbd039a463b30295f9107e2b9",
+        "verification": "Published saved records; fresh full runtime reevaluation not performed."
+      },
+      "coverage_families": {
+        "score": 39,
+        "success": 39,
+        "progress": 36,
+        "scene_cd": 34,
+        "shape_cd": 33,
+        "size_err": 33,
+        "terminal_trans": 22,
+        "terminal_rot": 14,
+        "fixed_success": 26,
+        "fixed_progress": 26,
+        "fixed_ape": 26,
+        "build": 39
+      },
+      "score_components": {
+        "F": 0.2006,
+        "G": 0.5924,
+        "D": 0.3551
+      },
+      "score_scope": {
+        "rows_in_denominator": 222,
+        "families": 39,
+        "rows_ok": 193,
+        "rows_scored_zero": 27
       }
     },
     {
@@ -279,39 +476,76 @@
       "run_label": "opus5_v2",
       "metrics": {
         "score": 37.91,
-        "success": 11.5,
-        "progress": 0.34,
-        "scene_cd": 5.96,
-        "shape_cd": 1.43,
-        "size_err": 3.6,
-        "terminal_trans": 26.09,
-        "terminal_rot": 110.87,
-        "fixed_success": 7.1,
-        "fixed_progress": 0.24,
-        "fixed_ape": 19.23,
-        "build": 86.8
+        "success": 12.866214981599596,
+        "progress": 0.3251633204758204,
+        "scene_cd": 6.644687556876254,
+        "shape_cd": 1.4193329059560578,
+        "size_err": 3.596803872018751,
+        "terminal_trans": 25.650250351735668,
+        "terminal_rot": 116.51789812193587,
+        "fixed_success": 5.714257964257964,
+        "fixed_progress": 0.22234605672105673,
+        "fixed_ape": 20.428313960806424,
+        "build": 89.54635108481263
       },
       "coverage": {
-        "score": null,
-        "success": 200,
-        "progress": 185,
-        "scene_cd": 181,
-        "shape_cd": 182,
-        "size_err": 182,
-        "terminal_trans": 153,
-        "terminal_rot": 72,
-        "fixed_success": 165,
-        "fixed_progress": 165,
-        "fixed_ape": 165,
-        "build": 194
+        "score": 222,
+        "success": 222,
+        "progress": 207,
+        "scene_cd": 203,
+        "shape_cd": 204,
+        "size_err": 204,
+        "terminal_trans": 155,
+        "terminal_rot": 74,
+        "fixed_success": 170,
+        "fixed_progress": 170,
+        "fixed_ape": 170,
+        "build": 216
       },
-      "validated": 194,
+      "validated": 216,
       "featured": false,
-      "configuration": null,
+      "configuration": {
+        "agent_harness": "opencode",
+        "agent_version": "not supplied",
+        "evaluator_schema": "eval2/4",
+        "scene_metric": "scene_cd_v5",
+        "reference_contract": "reference-candidate/1.2",
+        "relative_action_protocol": "fixed-relative-actions/1.0",
+        "public_contract": "camera-stage1/1.2",
+        "manifest_sha256": "45a0ea4bb8f39157723a6d03233859df5a81e209e61b5fc84f13bd4fce900190"
+      },
       "source": {
-        "type": "user_supplied_table",
-        "name": "supplied evaluation screenshot",
-        "date": "2026-10-09"
+        "type": "owner_published_records",
+        "name": "Published result records · 17 October 2026 snapshot",
+        "date": "2026-10-17",
+        "published_at": "2026-10-15T08:44:39Z",
+        "record_sha256": "a2e2a0a3f919dfddd3f3b77dc0d0fc5bc8b672fbc56992810308f7e0a834c511",
+        "verification": "Published saved records; fresh full runtime reevaluation not performed."
+      },
+      "coverage_families": {
+        "score": 39,
+        "success": 39,
+        "progress": 36,
+        "scene_cd": 34,
+        "shape_cd": 34,
+        "size_err": 34,
+        "terminal_trans": 23,
+        "terminal_rot": 15,
+        "fixed_success": 26,
+        "fixed_progress": 26,
+        "fixed_ape": 26,
+        "build": 39
+      },
+      "score_components": {
+        "F": 0.2124,
+        "G": 0.5504,
+        "D": 0.3744
+      },
+      "score_scope": {
+        "rows_in_denominator": 222,
+        "families": 39,
+        "rows_ok": 205,
+        "rows_scored_zero": 17
       }
     },
     {
@@ -322,39 +556,76 @@
       "run_label": "kimik3_v2",
       "metrics": {
         "score": 29.47,
-        "success": 4.2,
-        "progress": 0.17,
-        "scene_cd": 7.44,
-        "shape_cd": 1.35,
-        "size_err": 4.41,
-        "terminal_trans": 46.88,
-        "terminal_rot": 117.36,
-        "fixed_success": 2.7,
-        "fixed_progress": 0.13,
-        "fixed_ape": 30.95,
-        "build": 82.8
+        "success": 3.461638077022692,
+        "progress": 0.13534042414557124,
+        "scene_cd": 8.048545856982008,
+        "shape_cd": 1.4024374020645656,
+        "size_err": 4.137728926241035,
+        "terminal_trans": 45.13426696019109,
+        "terminal_rot": 122.77919614920194,
+        "fixed_success": 2.16330728095434,
+        "fixed_progress": 0.10233354064236416,
+        "fixed_ape": 27.762936933736565,
+        "build": 86.33136094674556
       },
       "coverage": {
-        "score": null,
-        "success": 200,
-        "progress": 186,
-        "scene_cd": 178,
-        "shape_cd": 179,
-        "size_err": 179,
-        "terminal_trans": 149,
-        "terminal_rot": 68,
-        "fixed_success": 164,
-        "fixed_progress": 163,
-        "fixed_ape": 163,
-        "build": 194
+        "score": 222,
+        "success": 222,
+        "progress": 207,
+        "scene_cd": 199,
+        "shape_cd": 201,
+        "size_err": 201,
+        "terminal_trans": 151,
+        "terminal_rot": 70,
+        "fixed_success": 169,
+        "fixed_progress": 168,
+        "fixed_ape": 169,
+        "build": 215
       },
-      "validated": 194,
+      "validated": 215,
       "featured": false,
-      "configuration": null,
+      "configuration": {
+        "agent_harness": "opencode",
+        "agent_version": "not supplied",
+        "evaluator_schema": "eval2/4",
+        "scene_metric": "scene_cd_v5",
+        "reference_contract": "reference-candidate/1.2",
+        "relative_action_protocol": "fixed-relative-actions/1.0",
+        "public_contract": "camera-stage1/1.2",
+        "manifest_sha256": "45a0ea4bb8f39157723a6d03233859df5a81e209e61b5fc84f13bd4fce900190"
+      },
       "source": {
-        "type": "user_supplied_table",
-        "name": "supplied evaluation screenshot",
-        "date": "2026-10-09"
+        "type": "owner_published_records",
+        "name": "Published result records · 17 October 2026 snapshot",
+        "date": "2026-10-17",
+        "published_at": "2026-10-15T08:44:39Z",
+        "record_sha256": "1266c7ecac5e00c022a0c887e3fbe76cd2be5624ba8c35dbbc4980e49aaf08e0",
+        "verification": "Published saved records; fresh full runtime reevaluation not performed."
+      },
+      "coverage_families": {
+        "score": 39,
+        "success": 39,
+        "progress": 36,
+        "scene_cd": 33,
+        "shape_cd": 34,
+        "size_err": 34,
+        "terminal_trans": 23,
+        "terminal_rot": 13,
+        "fixed_success": 26,
+        "fixed_progress": 26,
+        "fixed_ape": 26,
+        "build": 39
+      },
+      "score_components": {
+        "F": 0.0786,
+        "G": 0.4913,
+        "D": 0.3142
+      },
+      "score_scope": {
+        "rows_in_denominator": 222,
+        "families": 39,
+        "rows_ok": 201,
+        "rows_scored_zero": 21
       }
     },
     {
@@ -365,39 +636,76 @@
       "run_label": "gpt56_v2",
       "metrics": {
         "score": 27.97,
-        "success": 2.3,
-        "progress": 0.11,
-        "scene_cd": 7.74,
-        "shape_cd": 1.53,
-        "size_err": 4.52,
-        "terminal_trans": 50.44,
-        "terminal_rot": 95.33,
-        "fixed_success": 4.6,
-        "fixed_progress": 0.11,
-        "fixed_ape": 33.0,
-        "build": 83.3
+        "success": 1.797860259398721,
+        "progress": 0.08205735236985237,
+        "scene_cd": 8.045678493537984,
+        "shape_cd": 1.6285536392944433,
+        "size_err": 4.689873054526302,
+        "terminal_trans": 51.55457513038474,
+        "terminal_rot": 90.34623322197336,
+        "fixed_success": 3.7187705456936224,
+        "fixed_progress": 0.09116049548741856,
+        "fixed_ape": 32.303010974065,
+        "build": 86.75213675213675
       },
       "coverage": {
-        "score": null,
-        "success": 200,
-        "progress": 190,
-        "scene_cd": 186,
-        "shape_cd": 188,
-        "size_err": 188,
-        "terminal_trans": 158,
-        "terminal_rot": 68,
-        "fixed_success": 173,
-        "fixed_progress": 173,
-        "fixed_ape": 173,
-        "build": 200
+        "score": 222,
+        "success": 222,
+        "progress": 212,
+        "scene_cd": 208,
+        "shape_cd": 210,
+        "size_err": 210,
+        "terminal_trans": 160,
+        "terminal_rot": 70,
+        "fixed_success": 178,
+        "fixed_progress": 178,
+        "fixed_ape": 178,
+        "build": 222
       },
-      "validated": 200,
+      "validated": 222,
       "featured": false,
-      "configuration": null,
+      "configuration": {
+        "agent_harness": "opencode",
+        "agent_version": "not supplied",
+        "evaluator_schema": "eval2/4",
+        "scene_metric": "scene_cd_v5",
+        "reference_contract": "reference-candidate/1.2",
+        "relative_action_protocol": "fixed-relative-actions/1.0",
+        "public_contract": "camera-stage1/1.2",
+        "manifest_sha256": "45a0ea4bb8f39157723a6d03233859df5a81e209e61b5fc84f13bd4fce900190"
+      },
       "source": {
-        "type": "user_supplied_table",
-        "name": "supplied evaluation screenshot",
-        "date": "2026-10-09"
+        "type": "owner_published_records",
+        "name": "Published result records · 17 October 2026 snapshot",
+        "date": "2026-10-17",
+        "published_at": "2026-10-15T08:44:39Z",
+        "record_sha256": "21096202213e07819675aa33156c05194d0fb32baedf9648d2b759d4e8f9514b",
+        "verification": "Published saved records; fresh full runtime reevaluation not performed."
+      },
+      "coverage_families": {
+        "score": 39,
+        "success": 39,
+        "progress": 36,
+        "scene_cd": 33,
+        "shape_cd": 34,
+        "size_err": 34,
+        "terminal_trans": 23,
+        "terminal_rot": 12,
+        "fixed_success": 26,
+        "fixed_progress": 26,
+        "fixed_ape": 26,
+        "build": 39
+      },
+      "score_components": {
+        "F": 0.0469,
+        "G": 0.4856,
+        "D": 0.3068
+      },
+      "score_scope": {
+        "rows_in_denominator": 222,
+        "families": 39,
+        "rows_ok": 210,
+        "rows_scored_zero": 12
       }
     },
     {
@@ -408,39 +716,156 @@
       "run_label": "dsv41flash_v2",
       "metrics": {
         "score": 27.9,
-        "success": 3.6,
-        "progress": 0.15,
-        "scene_cd": 7.9,
-        "shape_cd": 1.47,
-        "size_err": 4.06,
-        "terminal_trans": 58.15,
-        "terminal_rot": 113.26,
-        "fixed_success": 3.7,
-        "fixed_progress": 0.12,
-        "fixed_ape": 40.79,
-        "build": 80.0
+        "success": 2.8999063614448235,
+        "progress": 0.11418756243756245,
+        "scene_cd": 8.47271969537341,
+        "shape_cd": 1.5095876102937986,
+        "size_err": 4.051762079484246,
+        "terminal_trans": 55.091487700672765,
+        "terminal_rot": 108.57041631594771,
+        "fixed_success": 2.9642579642579645,
+        "fixed_progress": 0.10035270285270285,
+        "fixed_ape": 35.73506740811224,
+        "build": 84.12228796844182
       },
       "coverage": {
-        "score": null,
-        "success": 200,
-        "progress": 187,
-        "scene_cd": 182,
-        "shape_cd": 183,
-        "size_err": 183,
-        "terminal_trans": 153,
-        "terminal_rot": 69,
-        "fixed_success": 169,
-        "fixed_progress": 169,
-        "fixed_ape": 169,
-        "build": 198
+        "score": 222,
+        "success": 222,
+        "progress": 209,
+        "scene_cd": 203,
+        "shape_cd": 205,
+        "size_err": 205,
+        "terminal_trans": 155,
+        "terminal_rot": 71,
+        "fixed_success": 167,
+        "fixed_progress": 167,
+        "fixed_ape": 167,
+        "build": 220
       },
-      "validated": 198,
+      "validated": 220,
       "featured": false,
-      "configuration": null,
+      "configuration": {
+        "agent_harness": "opencode",
+        "agent_version": "not supplied",
+        "evaluator_schema": "eval2/4",
+        "scene_metric": "scene_cd_v5",
+        "reference_contract": "reference-candidate/1.2",
+        "relative_action_protocol": "fixed-relative-actions/1.0",
+        "public_contract": "camera-stage1/1.2",
+        "manifest_sha256": "45a0ea4bb8f39157723a6d03233859df5a81e209e61b5fc84f13bd4fce900190"
+      },
       "source": {
-        "type": "user_supplied_table",
-        "name": "supplied evaluation screenshot",
-        "date": "2026-10-09"
+        "type": "owner_published_records",
+        "name": "Published result records · 17 October 2026 snapshot",
+        "date": "2026-10-17",
+        "published_at": "2026-10-15T08:44:39Z",
+        "record_sha256": "994915f31362b2f72e51c9851ca65faaf9ad391bc5ac7420720f878e924e6aca",
+        "verification": "Published saved records; fresh full runtime reevaluation not performed."
+      },
+      "coverage_families": {
+        "score": 39,
+        "success": 39,
+        "progress": 35,
+        "scene_cd": 32,
+        "shape_cd": 33,
+        "size_err": 33,
+        "terminal_trans": 23,
+        "terminal_rot": 13,
+        "fixed_success": 26,
+        "fixed_progress": 26,
+        "fixed_ape": 26,
+        "build": 39
+      },
+      "score_components": {
+        "F": 0.0646,
+        "G": 0.4801,
+        "D": 0.2923
+      },
+      "score_scope": {
+        "rows_in_denominator": 222,
+        "families": 39,
+        "rows_ok": 205,
+        "rows_scored_zero": 17
+      }
+    },
+    {
+      "id": "meta-muse",
+      "name": "Meta Muse Wonder",
+      "provider": "Meta",
+      "run_label": "musewonder_v2",
+      "metrics": {
+        "score": 27.9,
+        "success": 2.830823023130715,
+        "progress": 0.08475227511685844,
+        "scene_cd": 8.043396569066337,
+        "shape_cd": 1.3999088743238433,
+        "size_err": 4.218864278379225,
+        "terminal_trans": 47.286538907428955,
+        "terminal_rot": 105.14421856808582,
+        "fixed_success": 2.921037296037296,
+        "fixed_progress": 0.08851579777060546,
+        "fixed_ape": 37.231536937358285,
+        "build": 86.69734823580977
+      },
+      "coverage": {
+        "score": 222,
+        "success": 222,
+        "progress": 211,
+        "scene_cd": 206,
+        "shape_cd": 208,
+        "size_err": 208,
+        "terminal_trans": 157,
+        "terminal_rot": 71,
+        "fixed_success": 175,
+        "fixed_progress": 175,
+        "fixed_ape": 175,
+        "build": 222
+      },
+      "coverage_families": {
+        "score": 39,
+        "success": 39,
+        "progress": 36,
+        "scene_cd": 33,
+        "shape_cd": 34,
+        "size_err": 34,
+        "terminal_trans": 23,
+        "terminal_rot": 12,
+        "fixed_success": 26,
+        "fixed_progress": 26,
+        "fixed_ape": 26,
+        "build": 39
+      },
+      "model_id": "openrouter/meta/muse-wonder",
+      "validated": 222,
+      "featured": false,
+      "configuration": {
+        "agent_harness": "opencode",
+        "agent_version": "not supplied",
+        "evaluator_schema": "eval2/4",
+        "scene_metric": "scene_cd_v5",
+        "reference_contract": "reference-candidate/1.2",
+        "relative_action_protocol": "fixed-relative-actions/1.0",
+        "public_contract": "camera-stage1/1.2",
+        "manifest_sha256": "bf2252e4790577e9c864fd93dfa0b1559d79a2da9a9463fb2d0e4a1198030995"
+      },
+      "source": {
+        "type": "owner_published_records",
+        "name": "Published result records · 17 October 2026 snapshot",
+        "date": "2026-10-17",
+        "published_at": "2026-10-15T08:44:39Z",
+        "record_sha256": "bc0bceabf012802f0ef4422c13ec302415ac5faf23e4c83b7a44a62937b37988",
+        "verification": "Published saved records; fresh full runtime reevaluation not performed."
+      },
+      "score_components": {
+        "F": 0.0526,
+        "G": 0.4992,
+        "D": 0.2852
+      },
+      "score_scope": {
+        "rows_in_denominator": 222,
+        "families": 39,
+        "rows_ok": 208,
+        "rows_scored_zero": 14
       }
     },
     {
@@ -451,39 +876,76 @@
       "run_label": "gemini38flash_v2",
       "metrics": {
         "score": 26.55,
-        "success": 1.9,
-        "progress": 0.1,
-        "scene_cd": 8.71,
-        "shape_cd": 1.46,
-        "size_err": 3.76,
-        "terminal_trans": 55.73,
-        "terminal_rot": 119.07,
-        "fixed_success": 0.5,
-        "fixed_progress": 0.06,
-        "fixed_ape": 48.12,
-        "build": 82.3
+        "success": 1.4710716633793557,
+        "progress": 0.08111999882833215,
+        "scene_cd": 8.95600830429624,
+        "shape_cd": 1.4835583161865615,
+        "size_err": 3.9513321266949957,
+        "terminal_trans": 53.81216100231379,
+        "terminal_rot": 118.3019236093652,
+        "fixed_success": 0.42735042735042733,
+        "fixed_progress": 0.052400713602636685,
+        "fixed_ape": 46.25549031511984,
+        "build": 85.8974358974359
       },
       "coverage": {
-        "score": null,
-        "success": 200,
-        "progress": 191,
-        "scene_cd": 187,
-        "shape_cd": 188,
-        "size_err": 188,
-        "terminal_trans": 157,
-        "terminal_rot": 71,
-        "fixed_success": 169,
-        "fixed_progress": 168,
-        "fixed_ape": 169,
-        "build": 200
+        "score": 222,
+        "success": 222,
+        "progress": 213,
+        "scene_cd": 209,
+        "shape_cd": 210,
+        "size_err": 210,
+        "terminal_trans": 159,
+        "terminal_rot": 73,
+        "fixed_success": 174,
+        "fixed_progress": 173,
+        "fixed_ape": 174,
+        "build": 222
       },
-      "validated": 200,
+      "validated": 222,
       "featured": false,
-      "configuration": null,
+      "configuration": {
+        "agent_harness": "opencode",
+        "agent_version": "not supplied",
+        "evaluator_schema": "eval2/4",
+        "scene_metric": "scene_cd_v5",
+        "reference_contract": "reference-candidate/1.2",
+        "relative_action_protocol": "fixed-relative-actions/1.0",
+        "public_contract": "camera-stage1/1.2",
+        "manifest_sha256": "45a0ea4bb8f39157723a6d03233859df5a81e209e61b5fc84f13bd4fce900190"
+      },
       "source": {
-        "type": "user_supplied_table",
-        "name": "supplied evaluation screenshot",
-        "date": "2026-10-09"
+        "type": "owner_published_records",
+        "name": "Published result records · 17 October 2026 snapshot",
+        "date": "2026-10-17",
+        "published_at": "2026-10-15T08:44:39Z",
+        "record_sha256": "53eaff9590e0046b9c6838b0b0c31d90b3bea083c08985abee5c683d959b0944",
+        "verification": "Published saved records; fresh full runtime reevaluation not performed."
+      },
+      "coverage_families": {
+        "score": 39,
+        "success": 39,
+        "progress": 36,
+        "scene_cd": 33,
+        "shape_cd": 34,
+        "size_err": 34,
+        "terminal_trans": 23,
+        "terminal_rot": 14,
+        "fixed_success": 26,
+        "fixed_progress": 26,
+        "fixed_ape": 26,
+        "build": 39
+      },
+      "score_components": {
+        "F": 0.0448,
+        "G": 0.5045,
+        "D": 0.2473
+      },
+      "score_scope": {
+        "rows_in_denominator": 222,
+        "families": 39,
+        "rows_ok": 210,
+        "rows_scored_zero": 12
       }
     },
     {
@@ -494,39 +956,76 @@
       "run_label": "qwen38max_v2",
       "metrics": {
         "score": 24.27,
-        "success": 1.4,
-        "progress": 0.13,
-        "scene_cd": 7.84,
-        "shape_cd": 1.45,
-        "size_err": 4.0,
-        "terminal_trans": 56.66,
-        "terminal_rot": 101.34,
-        "fixed_success": 1.4,
-        "fixed_progress": 0.1,
-        "fixed_ape": 37.7,
-        "build": 78.0
+        "success": 1.073570304339535,
+        "progress": 0.09819190729905014,
+        "scene_cd": 8.641065623478445,
+        "shape_cd": 1.6106198018365474,
+        "size_err": 4.350224506459947,
+        "terminal_trans": 57.40867017572251,
+        "terminal_rot": 101.34573742633809,
+        "fixed_success": 1.118881118881119,
+        "fixed_progress": 0.0779410973641743,
+        "fixed_ape": 42.255868888209605,
+        "build": 82.66419253261358
       },
       "coverage": {
-        "score": null,
-        "success": 200,
-        "progress": 185,
-        "scene_cd": 168,
-        "shape_cd": 170,
-        "size_err": 170,
-        "terminal_trans": 151,
-        "terminal_rot": 67,
-        "fixed_success": 154,
-        "fixed_progress": 154,
-        "fixed_ape": 154,
-        "build": 198
+        "score": 222,
+        "success": 222,
+        "progress": 207,
+        "scene_cd": 190,
+        "shape_cd": 192,
+        "size_err": 192,
+        "terminal_trans": 142,
+        "terminal_rot": 69,
+        "fixed_success": 159,
+        "fixed_progress": 159,
+        "fixed_ape": 159,
+        "build": 220
       },
-      "validated": 198,
+      "validated": 220,
       "featured": false,
-      "configuration": null,
+      "configuration": {
+        "agent_harness": "opencode",
+        "agent_version": "not supplied",
+        "evaluator_schema": "eval2/4",
+        "scene_metric": "scene_cd_v5",
+        "reference_contract": "reference-candidate/1.2",
+        "relative_action_protocol": "fixed-relative-actions/1.0",
+        "public_contract": "camera-stage1/1.2",
+        "manifest_sha256": "45a0ea4bb8f39157723a6d03233859df5a81e209e61b5fc84f13bd4fce900190"
+      },
       "source": {
-        "type": "user_supplied_table",
-        "name": "supplied evaluation screenshot",
-        "date": "2026-10-09"
+        "type": "owner_published_records",
+        "name": "Published result records · 17 October 2026 snapshot",
+        "date": "2026-10-17",
+        "published_at": "2026-10-15T08:44:39Z",
+        "record_sha256": "caa0014cc1fe4c608bc0e6c0461db1c065ffca2e5af4ee3a466bf261e72f613d",
+        "verification": "Published saved records; fresh full runtime reevaluation not performed."
+      },
+      "coverage_families": {
+        "score": 39,
+        "success": 39,
+        "progress": 35,
+        "scene_cd": 32,
+        "shape_cd": 33,
+        "size_err": 33,
+        "terminal_trans": 23,
+        "terminal_rot": 13,
+        "fixed_success": 26,
+        "fixed_progress": 26,
+        "fixed_ape": 26,
+        "build": 38
+      },
+      "score_components": {
+        "F": 0.0457,
+        "G": 0.4487,
+        "D": 0.2337
+      },
+      "score_scope": {
+        "rows_in_denominator": 222,
+        "families": 39,
+        "rows_ok": 192,
+        "rows_scored_zero": 30
       }
     },
     {
@@ -537,39 +1036,76 @@
       "run_label": "glm53flash_v2",
       "metrics": {
         "score": 19.91,
-        "success": 1.8,
-        "progress": 0.07,
-        "scene_cd": 9.66,
-        "shape_cd": 1.56,
-        "size_err": 4.45,
-        "terminal_trans": 59.65,
-        "terminal_rot": 109.61,
-        "fixed_success": 0.5,
-        "fixed_progress": 0.09,
-        "fixed_ape": 46.9,
-        "build": 74.7
+        "success": 1.501952463490925,
+        "progress": 0.05296107331821617,
+        "scene_cd": 9.644073149538675,
+        "shape_cd": 1.679970476476769,
+        "size_err": 4.760419566168649,
+        "terminal_trans": 55.959859398491766,
+        "terminal_rot": 108.72943243493653,
+        "fixed_success": 0.42735042735042733,
+        "fixed_progress": 0.07562909799751905,
+        "fixed_ape": 44.064756074739094,
+        "build": 80.06434355118566
       },
       "coverage": {
-        "score": null,
-        "success": 203,
-        "progress": 170,
-        "scene_cd": 154,
-        "shape_cd": 154,
-        "size_err": 154,
-        "terminal_trans": 127,
-        "terminal_rot": 64,
-        "fixed_success": 143,
-        "fixed_progress": 142,
-        "fixed_ape": 143,
-        "build": 180
+        "score": 222,
+        "success": 222,
+        "progress": 189,
+        "scene_cd": 173,
+        "shape_cd": 173,
+        "size_err": 173,
+        "terminal_trans": 129,
+        "terminal_rot": 66,
+        "fixed_success": 148,
+        "fixed_progress": 147,
+        "fixed_ape": 148,
+        "build": 199
       },
-      "validated": 180,
+      "validated": 199,
       "featured": false,
-      "configuration": null,
+      "configuration": {
+        "agent_harness": "opencode",
+        "agent_version": "not supplied",
+        "evaluator_schema": "eval2/4",
+        "scene_metric": "scene_cd_v5",
+        "reference_contract": "reference-candidate/1.2",
+        "relative_action_protocol": "fixed-relative-actions/1.0",
+        "public_contract": "camera-stage1/1.2",
+        "manifest_sha256": "45a0ea4bb8f39157723a6d03233859df5a81e209e61b5fc84f13bd4fce900190"
+      },
       "source": {
-        "type": "user_supplied_table",
-        "name": "supplied evaluation screenshot",
-        "date": "2026-10-09"
+        "type": "owner_published_records",
+        "name": "Published result records · 17 October 2026 snapshot",
+        "date": "2026-10-17",
+        "published_at": "2026-10-15T08:44:39Z",
+        "record_sha256": "7d5ce81540420a27ea4863a997f5e0bbb0d05989d618c916795d9e3edc4c0b96",
+        "verification": "Published saved records; fresh full runtime reevaluation not performed."
+      },
+      "coverage_families": {
+        "score": 39,
+        "success": 39,
+        "progress": 35,
+        "scene_cd": 32,
+        "shape_cd": 32,
+        "size_err": 32,
+        "terminal_trans": 22,
+        "terminal_rot": 14,
+        "fixed_success": 26,
+        "fixed_progress": 26,
+        "fixed_ape": 26,
+        "build": 38
+      },
+      "score_components": {
+        "F": 0.0279,
+        "G": 0.3697,
+        "D": 0.1999
+      },
+      "score_scope": {
+        "rows_in_denominator": 222,
+        "families": 39,
+        "rows_ok": 173,
+        "rows_scored_zero": 49
       }
     }
   ],
@@ -580,20 +1116,6 @@
       "provider": "Google",
       "status": "testing",
       "metrics": null
-    },
-    {
-      "id": "meta-muse",
-      "name": "Meta Muse",
-      "provider": "Meta",
-      "status": "testing",
-      "metrics": null
-    },
-    {
-      "id": "gpt-6-1-sol",
-      "name": "GPT-6.1 Sol",
-      "provider": "OpenAI",
-      "status": "testing",
-      "metrics": null
     }
   ],
   "updates": [
@@ -601,9 +1123,49 @@
       "slug": "opus-5-5",
       "model_id": "opus-5-5",
       "title": "Opus 5.5 sets a new high on Video2World",
-      "date": "2026-10-09",
+      "date": "2026-10-17",
       "status": "results",
-      "snapshot_id": "v2-supplied-2026-10-09"
+      "snapshot_id": "v2-published-2026-10-17"
+    },
+    {
+      "slug": "gpt-6-1-sol",
+      "model_id": "gpt-6-1-sol",
+      "title": "GPT-6.1 Sol: reliable builds and room for task completion",
+      "date": "2026-10-17",
+      "status": "results",
+      "snapshot_id": "v2-published-2026-10-17",
+      "compare_ids": [
+        "opus-5-5",
+        "gpt-6-astra"
+      ]
+    },
+    {
+      "slug": "meta-muse",
+      "model_id": "meta-muse",
+      "title": "Muse Wonder: executability and task completion",
+      "date": "2026-10-17",
+      "status": "results",
+      "snapshot_id": "v2-published-2026-10-17",
+      "compare_ids": [
+        "opus-5-5",
+        "gpt-6-1-sol"
+      ]
     }
-  ]
+  ],
+  "previous_snapshots": [
+    {
+      "id": "v2-supplied-2026-10-09",
+      "href": "data/archive/2026-10-09-leaderboard.json",
+      "note": "Earlier screenshot with different component-metric coverage; retained for provenance."
+    }
+  ],
+  "scoring_protocol": {
+    "evaluator_schema": "eval2/4",
+    "scene_metric": "scene_cd_v5",
+    "reference_contract": "reference-candidate/1.2",
+    "relative_action_protocol": "fixed-relative-actions/1.0",
+    "scope_amendment": "rev5-ref-contracts-20261009",
+    "instances": 222,
+    "families": 39
+  }
 }
